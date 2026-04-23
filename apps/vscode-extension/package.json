@@ -1,0 +1,68 @@
+{
+  "name": "reporting-vscode",
+  "displayName": "Report Designer",
+  "description": "Visueller WYSIWYG Report Designer mit KI-Copilot, eingebettet in VS Code",
+  "version": "0.1.0",
+  "publisher": "reporting",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other", "Visualization"],
+  "keywords": ["report", "designer", "rdlc", "devexpress", "pdf", "ai"],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "reporting.designer",
+        "displayName": "Report Designer",
+        "selector": [
+          { "filenamePattern": "*.myreport" },
+          { "filenamePattern": "*.myreport.json" }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      { "command": "reporting.newReport", "title": "Report Designer: New Report" },
+      { "command": "reporting.preview",   "title": "Report Designer: Render Preview (PDF)" }
+    ],
+    "configuration": {
+      "title": "Report Designer",
+      "properties": {
+        "reporting.anthropicApiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Anthropic API key used by the AI copilot. Stored in your settings; for production, prefer environment variables."
+        },
+        "reporting.aiModel": {
+          "type": "string",
+          "default": "claude-sonnet-4-6",
+          "description": "Claude model used by the AI copilot."
+        },
+        "reporting.pythonBackendUrl": {
+          "type": "string",
+          "default": "http://localhost:8787/render",
+          "description": "URL of the Python PDF render backend."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build:webview && tsc -p ./",
+    "build:webview": "vite build --config vite.webview.config.ts",
+    "watch": "tsc -w -p ./",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0",
+    "@reporting/designer": "0.1.0",
+    "@reporting/schema": "0.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

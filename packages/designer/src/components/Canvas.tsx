@@ -1,0 +1,177 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import clsx from "clsx";
+import {
+  mmToPx,
+  paperSizeMm,
+  type Band,
+  type BandType,
+  type ElementType,
+  type ReportElement,
+} from "@reporting/schema";
+import { useDesignerStore } from "../store/designerStore";
+import { ElementView } from "./ElementView";
+
+const BAND_LABELS: Record<BandType, string> = {
+  pageHeader: "Page Header",
+  reportHeader: "Report Header",
+  body: "Body",
+  reportFooter: "Report Footer",
+  pageFooter: "Page Footer",
+};
+
+export function Canvas() {
+  const doc = useDesignerStore((s) => s.doc);
+  const zoom = useDesignerStore((s) => s.zoom);
+  const selection = useDesignerStore((s) => s.selection);
+  const showGrid = useDesignerStore((s) => s.showGrid);
+  const gridSize = useDesignerStore((s) => s.gridSize);
+  const snap = useDesignerStore((s) => s.snapToGrid);
+  const sampleData = useDesignerStore((s) => s.sampleData);
+  const select = useDesignerStore((s) => s.select);
+  const addElementAt = useDesignerStore((s) => s.addElementAt);
+  const updateElement = useDesignerStore((s) => s.updateElement);
+
+  const size = paperSizeMm(doc.page.size, doc.page.orientation);
+  const pxPerMm = mmToPx(1) * zoom;
+  const paperRef = useRef<HTMLDivElement | null>(null);
+  const [dragOverBand, setDragOverBand] = useState<BandType | null>(null);
+
+  const dataCtx = useMemo<Record<string, unknown>>(() => {
+    if (sampleData && typeof sampleData === "object") return sampleData as Record<string, unknown>;
+    return {};
+  }, [sampleData]);
+
+  const handleDrop = (e: React.DragEvent, band: Band) => {
+    e.preventDefault();
+    setDragOverBand(null);
+    const type = e.dataTransfer.getData("application/x-rd-element") as ElementType | "";
+    if (!type) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const xMm = (e.clientX - rect.left) / pxPerMm;
+    const yMm = (e.clientY - rect.top) / pxPerMm;
+    const [x, y] = maybeSnap(xMm, yMm, snap, gridSize);
+    addElementAt(band.type, type, Math.max(0, x), Math.max(0, y));
+  };
+
+  // Keyboard shortcuts on selected element
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (selection.kind !== "element") return;
+      const target = e.target as HTMLElement | null;
+      if (target && /INPUT|TEXTAREA|SELECT/.test(target.tagName)) return;
+
+      const step = e.shiftKey ? gridSize : 1;
+      const { bandType, elementId } = selection;
+      const move = (dx: number, dy: number) => {
+        e.preventDefault();
+        updateElement(bandType, elementId, (el) => ({
+          ...el,
+          bounds: { ...el.bounds, x: Math.max(0, el.bounds.x + dx), y: Math.max(0, el.bounds.y + dy) },
+        }));
+      };
+      if (e.key === "ArrowLeft") move(-step, 0);
+      else if (e.key === "ArrowRight") move(step, 0);
+      else if (e.key === "ArrowUp") move(0, -step);
+      else if (e.key === "ArrowDown") move(0, step);
+      else if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        useDesignerStore.getState().deleteElement(bandType, elementId);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        useDesignerStore.getState().duplicateSelection();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        useDesignerStore.getState().undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
+        e.preventDefault();
+        useDesignerStore.getState().redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selection, gridSize, updateElement]);
+
+  const paperStyle: React.CSSProperties = {
+    width: size.width * pxPerMm,
+    height: size.height * pxPerMm,
+  };
+
+  return (
+    <div
+      className="rd-canvas-area rd-scroll"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) select({ kind: "none" });
+      }}
+    >
+      <div className="rd-paper" ref={paperRef} style={paperStyle}>
+        {showGrid && <GridOverlay pxPerMm={pxPerMm} gridSize={gridSize} />}
+        {doc.bands.map((band) => (
+          <BandView
+            key={band.type}
+            band={band}
+            pxPerMm={pxPerMm}
+            dataCtx={dataCtx}
+            isDragOver={dragOverBand === band.type}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "copy";
+              setDragOverBand(band.type);
+            }}
+            onDragLeave={() => setDragOverBand(null)}
+            onDrop={(e) => handleDrop(e, band)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BandView({
+  band,
+  pxPerMm,
+  dataCtx,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: {
+  band: Band;
+  pxPerMm: number;
+  dataCtx: Record<string, unknown>;
+  isDragOver: boolean;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent) => void;
+}) {
+  const select = useDesignerStore((s) => s.select);
+  return (
+    <div
+      className={clsx("rd-band", isDragOver && "rd-drag-over")}
+      style={{ height: band.height * pxPerMm }}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) select({ kind: "band", bandType: band.type });
+      }}
+    >
+      <span className="rd-band-label">{BAND_LABELS[band.type]}</span>
+      {band.elements.map((el) => (
+        <ElementView key={el.id} element={el} bandType={band.type} pxPerMm={pxPerMm} data={dataCtx} />
+      ))}
+    </div>
+  );
+}
+
+function GridOverlay({ pxPerMm, gridSize }: { pxPerMm: number; gridSize: number }) {
+  const step = gridSize * pxPerMm;
+  const bg = `repeating-linear-gradient(0deg, transparent 0, transparent ${step - 1}px, rgba(17,24,39,0.06) ${step}px), repeating-linear-gradient(90deg, transparent 0, transparent ${step - 1}px, rgba(17,24,39,0.06) ${step}px)`;
+  return <div className="rd-grid" style={{ backgroundImage: bg }} />;
+}
+
+function maybeSnap(x: number, y: number, snap: boolean, grid: number): [number, number] {
+  if (!snap) return [x, y];
+  return [Math.round(x / grid) * grid, Math.round(y / grid) * grid];
+}
+
+export { maybeSnap };

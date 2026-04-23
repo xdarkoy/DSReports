@@ -1,0 +1,9 @@
+.vscode/**
+src/**
+node_modules/**
+**/*.map
+**/*.ts
+!out/extension.js
+vite.webview.config.ts
+tsconfig.json
+**/.DS_Store

@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Report Designer</title>
+    <style> html, body, #root { height: 100%; margin: 0; } </style>
+    <!--
+      The React bundle is produced by the vscode extension's webview build
+      and copied here by a post-build step. See scripts/build-webview.ps1
+      at the monorepo root.
+    -->
+    <link rel="stylesheet" href="./designer.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./designer.js"></script>
+    <script>
+      // WebView2 bridge shim — lets the same React bundle we ship in VS Code
+      // (which calls `acquireVsCodeApi()`) also run inside WebView2.
+      window.acquireVsCodeApi = function () {
+        var handlers = [];
+        window.addEventListener("message", function (e) {
+          for (var h of handlers) h({ data: e.data });
+        });
+        return {
+          postMessage: function (msg) {
+            window.chrome.webview.postMessage(msg);
+          },
+          setState: function () {},
+          getState: function () { return null; },
+        };
+      };
+      // WebView2 uses chrome.webview.postMessage for host → guest already;
+      // we need guest → host via postWebMessageAsJson which is handled natively.
+      window.chrome = window.chrome || {};
+    </script>
+  </body>
+</html>

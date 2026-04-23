@@ -1,0 +1,28 @@
+node_modules/
+dist/
+out/
+build/
+.vscode-test/
+*.vsix
+.DS_Store
+Thumbs.db
+.env
+.env.local
+*.log
+.turbo/
+coverage/
+.cache/
+
+# Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+packages/visualstudio/*.pdb
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
