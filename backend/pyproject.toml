@@ -1,0 +1,18 @@
+[project]
+name = "reporting-backend"
+version = "0.1.0"
+description = "PDF render service for the Report Designer JSON schema."
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "reportlab>=4.0",
+    "pydantic>=2.6",
+    "python-barcode>=0.15",
+    "qrcode>=7.4",
+    "Pillow>=10.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "pytest"]
