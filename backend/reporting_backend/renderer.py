@@ -261,36 +261,75 @@ def _table(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: floa
             cur_x += col_widths[i]
         y_top -= header_h_pt
 
-    # rows
+    # rows (with optional Crystal-style grouping + per-group subtotals)
     running: dict = {}
-    for idx, row in enumerate(rows):
-        if y_top - row_h_pt < y:
-            break  # no pagination in baseline
-        if idx % 2 == 1 and el.get("alternateRowColor"):
-            c.setFillColorRGB(*_hex(el["alternateRowColor"]))
+    group_by = el.get("groupBy")
+    idx = 0
+    stopped = False
+    for gkey, grows in _group_rows(rows, group_by):
+        if stopped:
+            break
+        # group header
+        if group_by and el.get("groupHeader") is not None:
+            if y_top - row_h_pt < y:
+                break
+            c.setFillColorRGB(0.93, 0.94, 1.0)
             c.rect(x, y_top - row_h_pt, w, row_h_pt, fill=1, stroke=0)
-        cur_x = x
-        for i, col in enumerate(columns):
-            cell_ctx = {**ctx, "row": row, "RowNumber": idx + 1}
-            cstyle = _merge_conditional(col.get("cellStyle") or {}, col.get("conditional"), cell_ctx)
-            bg = cstyle.get("backgroundColor")
-            if bg:
-                c.setFillColorRGB(*_hex(bg))
-                c.rect(cur_x, y_top - row_h_pt, col_widths[i], row_h_pt, fill=1, stroke=0)
-            if col.get("runningTotal"):
-                key = col.get("id", i)
-                try:
-                    running[key] = running.get(key, 0.0) + float(evaluate_value(col.get("cell", ""), cell_ctx))
-                except (TypeError, ValueError):
-                    pass
-                value = apply_format(running.get(key, 0.0), col.get("format"))
-            else:
-                value = apply_format(evaluate_value(col.get("cell", ""), cell_ctx), col.get("format"))
-            c.setFillColorRGB(*_hex(cstyle.get("color") or "#111827"))
-            c.setFont(_font(cstyle), float(cstyle.get("fontSize") or 9))
-            c.drawString(cur_x + 3, y_top - row_h_pt + 3, str(value))
-            cur_x += col_widths[i]
-        y_top -= row_h_pt
+            c.setFillColorRGB(0.07, 0.09, 0.15)
+            c.setFont("Helvetica-Bold", 9)
+            gh = evaluate_value(el.get("groupHeader"), {**ctx, "group": gkey, "GroupCount": len(grows)})
+            c.drawString(x + 3, y_top - row_h_pt + 3, str(gh))
+            y_top -= row_h_pt
+        # data rows
+        for row in grows:
+            if y_top - row_h_pt < y:
+                stopped = True
+                break
+            if idx % 2 == 1 and el.get("alternateRowColor"):
+                c.setFillColorRGB(*_hex(el["alternateRowColor"]))
+                c.rect(x, y_top - row_h_pt, w, row_h_pt, fill=1, stroke=0)
+            cur_x = x
+            for i, col in enumerate(columns):
+                cell_ctx = {**ctx, "row": row, "RowNumber": idx + 1}
+                cstyle = _merge_conditional(col.get("cellStyle") or {}, col.get("conditional"), cell_ctx)
+                bg = cstyle.get("backgroundColor")
+                if bg:
+                    c.setFillColorRGB(*_hex(bg))
+                    c.rect(cur_x, y_top - row_h_pt, col_widths[i], row_h_pt, fill=1, stroke=0)
+                if col.get("runningTotal"):
+                    key = col.get("id", i)
+                    try:
+                        running[key] = running.get(key, 0.0) + float(evaluate_value(col.get("cell", ""), cell_ctx))
+                    except (TypeError, ValueError):
+                        pass
+                    value = apply_format(running.get(key, 0.0), col.get("format"))
+                else:
+                    value = apply_format(evaluate_value(col.get("cell", ""), cell_ctx), col.get("format"))
+                c.setFillColorRGB(*_hex(cstyle.get("color") or "#111827"))
+                c.setFont(_font(cstyle), float(cstyle.get("fontSize") or 9))
+                c.drawString(cur_x + 3, y_top - row_h_pt + 3, str(value))
+                cur_x += col_widths[i]
+            y_top -= row_h_pt
+            idx += 1
+        # per-group subtotal row
+        if not stopped and group_by and el.get("showGroupFooter") and y_top - row_h_pt >= y:
+            c.setFillColorRGB(0.95, 0.96, 0.98)
+            c.rect(x, y_top - row_h_pt, w, row_h_pt, fill=1, stroke=0)
+            c.setFillColorRGB(0.07, 0.09, 0.15)
+            c.setFont("Helvetica-Bold", 9)
+            cur_x = x
+            for i, col in enumerate(columns):
+                if col.get("summary"):
+                    vals = []
+                    for r in grows:
+                        try:
+                            vals.append(float(evaluate_value(col.get("cell", ""), {**ctx, "row": r})))
+                        except (TypeError, ValueError):
+                            pass
+                    c.drawString(cur_x + 3, y_top - row_h_pt + 3,
+                                 apply_format(_aggregate(col["summary"], vals, len(grows)), col.get("format")))
+                cur_x += col_widths[i]
+            y_top -= row_h_pt
 
     # footer / summary row (Crystal-style summary fields)
     if el.get("showFooter"):
@@ -343,6 +382,22 @@ def _shape_rows(rows: list, el: dict, ctx: Mapping[str, Any]) -> list:
         desc = s.get("dir") == "desc"
         out.sort(key=lambda r: _sort_key(r.get(field) if isinstance(r, Mapping) else None), reverse=desc)
     return out
+
+
+def _group_rows(rows: list, field: Any) -> list:
+    """Group rows by a field, preserving first-appearance order."""
+    if not field:
+        return [(None, rows)]
+    order: list = []
+    groups: dict = {}
+    for r in rows:
+        key = r.get(field) if isinstance(r, Mapping) else None
+        k = str(key)
+        if k not in groups:
+            groups[k] = (key, [])
+            order.append(k)
+        groups[k][1].append(r)
+    return [groups[k] for k in order]
 
 
 def _footer_cell(col: dict, rows: list, ctx: Mapping[str, Any]) -> str:

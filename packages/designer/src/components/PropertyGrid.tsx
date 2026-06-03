@@ -350,6 +350,33 @@ function TableProps({ el, patch }: { el: TableElement; patch: (u: (el: ReportEle
           <NumField label="Footer H (mm)" value={el.footerHeight ?? el.rowHeight ?? 7} onChange={(v) => patch((p) => ({ ...(p as TableElement), footerHeight: v }))} />
         )}
       </Group>
+      <Group title="Grouping">
+        <Field label="Group by">
+          <input
+            value={el.groupBy ?? ""}
+            placeholder="z.B. category"
+            onChange={(e) => patch((p) => ({ ...(p as TableElement), groupBy: e.target.value || undefined }))}
+          />
+        </Field>
+        {el.groupBy && (
+          <>
+            <Field label="Header">
+              <input
+                value={el.groupHeader ?? ""}
+                placeholder="Kategorie: {{group}}"
+                onChange={(e) => patch((p) => ({ ...(p as TableElement), groupHeader: e.target.value || undefined }))}
+              />
+            </Field>
+            <Field label="Subtotals">
+              <input
+                type="checkbox"
+                checked={!!el.showGroupFooter}
+                onChange={(e) => patch((p) => ({ ...(p as TableElement), showGroupFooter: e.target.checked }))}
+              />
+            </Field>
+          </>
+        )}
+      </Group>
       <Group title="Columns">
         {el.columns.map((c, i) => (
           <div key={c.id} style={{ border: "1px solid var(--rd-border)", borderRadius: 6, padding: 8, marginBottom: 6 }}>

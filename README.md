@@ -82,6 +82,9 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
  - **Record Selection & Sortierung** – Tabellen-`filter` (`= row.qty > 0`) und
    Sortierung pro Feld (asc/desc)
  - **Running Totals** – laufende (kumulierte) Summe in einer Tabellenspalte
+ - **Gruppierung mit Zwischensummen** – Tabelle nach Feld gruppieren
+   (`groupBy`), Gruppen-Kopfzeile (`Kategorie: {{group}}`) und Subtotal-Zeile
+   je Gruppe (nutzt die Spalten-`summary`)
  - **Drag-and-drop** – Toolbox-Elemente *und* Datenfelder auf Bands/Elemente
  - **Snap-to-grid**, Arrow-Key-Nudging, Resize-Handles, Undo/Redo
  - **Data Explorer** – JSON paste-and-bind, Baumansicht, Drag von Feldern

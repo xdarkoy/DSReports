@@ -31,3 +31,31 @@ export function shapeRows(
   }
   return out;
 }
+
+export interface RowGroup {
+  key: unknown;
+  rows: unknown[];
+}
+
+/**
+ * Group rows by a field for Crystal-style grouping. Groups are returned in
+ * first-appearance order (sort by the same field first for contiguous groups).
+ * With no field, returns a single group containing all rows.
+ */
+export function groupRows(rows: unknown[], field?: string): RowGroup[] {
+  if (!field) return [{ key: undefined, rows }];
+  const order: string[] = [];
+  const map = new Map<string, RowGroup>();
+  for (const row of rows) {
+    const key = (row as Record<string, unknown>)?.[field];
+    const k = String(key);
+    let g = map.get(k);
+    if (!g) {
+      g = { key, rows: [] };
+      map.set(k, g);
+      order.push(k);
+    }
+    g.rows.push(row);
+  }
+  return order.map((k) => map.get(k)!);
+}

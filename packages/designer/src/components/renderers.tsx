@@ -13,7 +13,7 @@ import type {
 import { applyFormat, evaluateArray, evaluateValue } from "../utils/expression";
 import { aggregate } from "../utils/reportFields";
 import { mergeConditional } from "../utils/conditional";
-import { shapeRows } from "../utils/tableData";
+import { shapeRows, groupRows } from "../utils/tableData";
 
 export function renderElement(el: ReportElement, data: Record<string, unknown>, pxPerMm: number): JSX.Element {
   switch (el.type) {
@@ -161,6 +161,60 @@ function TableR({ el, data, pxPerMm }: { el: TableElement; data: Record<string, 
   const colTotal = el.columns.reduce((s, c) => s + c.width, 0) || 1;
   const running: Record<string, number> = {};
 
+  const rowTr = (row: unknown, i: number, hasData: boolean) => (
+    <tr key={`r${i}`} style={{ height: rowH }}>
+      {el.columns.map((c) => {
+        const ctx = { ...data, row, RowNumber: i + 1 };
+        const cellStyle = mergeConditional(c.cellStyle, c.conditional, ctx);
+        let content: React.ReactNode;
+        if (c.runningTotal && hasData) {
+          running[c.id] = (running[c.id] ?? 0) + (Number(evaluateValue(c.cell, ctx)) || 0);
+          content = applyFormat(running[c.id], c.format);
+        } else {
+          content = applyFormat(evaluateValue(c.cell, ctx), c.format) || (hasData ? "" : <span style={{ opacity: 0.25 }}>…</span>);
+        }
+        return (
+          <td key={c.id} style={{ width: `${(c.width / colTotal) * 100}%`, ...styleOf(cellStyle), background: cellStyle.backgroundColor ?? (i % 2 ? el.alternateRowColor : undefined) }}>
+            {content}
+          </td>
+        );
+      })}
+    </tr>
+  );
+
+  const renderBodyRows = (): React.ReactNode[] => {
+    if (!rows.length) return [{}, {}, {}].map((row, i) => rowTr(row, i, false));
+    const groups = groupRows(rows, el.groupBy);
+    const trs: React.ReactNode[] = [];
+    let i = 0;
+    groups.forEach((g, gi) => {
+      if (el.groupBy && el.groupHeader != null) {
+        trs.push(
+          <tr key={`gh${gi}`} style={{ height: rowH, fontWeight: 600 }}>
+            <td colSpan={el.columns.length} style={{ background: "#eef2ff", padding: "0 4px" }}>
+              {evaluateValue(el.groupHeader, { ...data, group: g.key, GroupCount: g.rows.length })}
+            </td>
+          </tr>,
+        );
+      }
+      g.rows.forEach((row) => { trs.push(rowTr(row, i, true)); i++; });
+      if (el.groupBy && el.showGroupFooter) {
+        trs.push(
+          <tr key={`gf${gi}`} style={{ height: rowH, fontWeight: 600 }}>
+            {el.columns.map((c) => (
+              <td key={c.id} style={{ width: `${(c.width / colTotal) * 100}%`, background: "#f1f5f9", ...styleOf(c.cellStyle) }}>
+                {c.summary
+                  ? applyFormat(aggregate(c.summary, g.rows.map((r) => Number(evaluateValue(c.cell, { ...data, row: r })))), c.format)
+                  : ""}
+              </td>
+            ))}
+          </tr>,
+        );
+      }
+    });
+    return trs;
+  };
+
   return (
     <table className="rd-tbl">
       {el.showHeader !== false && (
@@ -175,29 +229,7 @@ function TableR({ el, data, pxPerMm }: { el: TableElement; data: Record<string, 
         </thead>
       )}
       <tbody>
-        {(rows.length ? rows : [{}, {}, {}]).map((row, i) => (
-          <tr key={i} style={{ height: rowH }}>
-            {el.columns.map((c) => {
-              const ctx = { ...data, row, RowNumber: i + 1 };
-              const cellStyle = mergeConditional(c.cellStyle, c.conditional, ctx);
-              let content: React.ReactNode;
-              if (c.runningTotal && rows.length) {
-                running[c.id] = (running[c.id] ?? 0) + (Number(evaluateValue(c.cell, ctx)) || 0);
-                content = applyFormat(running[c.id], c.format);
-              } else {
-                content = applyFormat(evaluateValue(c.cell, ctx), c.format) || (rows.length ? "" : <span style={{ opacity: 0.25 }}>…</span>);
-              }
-              return (
-                <td
-                  key={c.id}
-                  style={{ width: `${(c.width / colTotal) * 100}%`, ...styleOf(cellStyle), background: cellStyle.backgroundColor ?? (i % 2 ? el.alternateRowColor : undefined) }}
-                >
-                  {content}
-                </td>
-              );
-            })}
-          </tr>
-        ))}
+        {renderBodyRows()}
       </tbody>
       {el.showFooter && (
         <tfoot>

@@ -195,6 +195,12 @@ export interface TableElement extends BaseElement {
   filter?: ValueExpr;
   /** sort rows before rendering (Crystal-style record sort) */
   sort?: TableSort[];
+  /** group rows by this field (Crystal-style grouping) */
+  groupBy?: string;
+  /** group header row text; `{{group}}` is the group value, e.g. "Kategorie: {{group}}" */
+  groupHeader?: ValueExpr;
+  /** show a per-group subtotal row (uses each column's `summary`) */
+  showGroupFooter?: boolean;
   pageBreak?: boolean;
   style?: BoxStyle;
 }

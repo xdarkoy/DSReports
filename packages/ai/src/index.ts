@@ -46,6 +46,7 @@ Special fields (Crystal-Reports-style) are available in any binding: {{Page}}, {
 Tables support a summary row: set the table's "showFooter": true and give numeric columns a "summary" of "sum"|"avg"|"count"|"min"|"max" (or a literal "footer" string like "Gesamt:").
 Tables can also "filter" rows ("= row.qty > 0") and "sort" them ([{"field":"price","dir":"desc"}]); a column may set "runningTotal": true for a cumulative total.
 Conditional formatting: text elements and table columns accept "conditional": [{ "when": "= row.total < 0", "style": { "color": "#ff0000", "fontWeight": "bold", "backgroundColor": "#fee" } }].
+Grouping: a table may set "groupBy": "category" with "groupHeader": "Kategorie: {{group}}" and "showGroupFooter": true to render a header + subtotal row per group (subtotals use each column's "summary").
 
 Schema (condensed):
 {
