@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "meta": { "title": "Rechnung" },
+  "page": { "size": "A4", "orientation": "portrait", "margin": { "top": 15, "right": 15, "bottom": 15, "left": 15 }, "unit": "mm" },
+  "dataSources": [],
+  "parameters": [],
+  "bands": [
+    { "type": "pageHeader", "height": 30, "elements": [
+      { "id": "title", "type": "text", "bounds": { "x": 10, "y": 6, "width": 120, "height": 12 },
+        "value": "Rechnung {{invoice.number}}", "style": { "fontSize": 20, "fontWeight": "bold", "color": "#111827" } },
+      { "id": "date", "type": "text", "bounds": { "x": 140, "y": 8, "width": 60, "height": 6 },
+        "value": "Datum: {{invoice.date}}", "style": { "fontSize": 10, "color": "#6b7280", "horizontalAlign": "right" } },
+      { "id": "hr", "type": "line", "bounds": { "x": 10, "y": 26, "width": 190, "height": 0.3 }, "color": "#e5e7eb", "width": 0.3 }
+    ] },
+    { "type": "body", "height": 200, "elements": [
+      { "id": "cl", "type": "text", "bounds": { "x": 10, "y": 4, "width": 40, "height": 6 },
+        "value": "Rechnung an:", "style": { "fontSize": 10, "fontWeight": "bold" } },
+      { "id": "cn", "type": "text", "bounds": { "x": 10, "y": 11, "width": 120, "height": 6 },
+        "value": "{{invoice.customer.name}}", "style": { "fontSize": 11 } },
+      { "id": "ce", "type": "text", "bounds": { "x": 10, "y": 17, "width": 120, "height": 5 },
+        "value": "{{invoice.customer.email}}", "style": { "fontSize": 9, "color": "#6b7280" } },
+      { "id": "cc", "type": "text", "bounds": { "x": 10, "y": 22, "width": 120, "height": 5 },
+        "value": "{{invoice.customer.city}}", "style": { "fontSize": 9, "color": "#6b7280" } },
+      { "id": "tbl", "type": "table", "bounds": { "x": 10, "y": 34, "width": 190, "height": 120 },
+        "dataSource": "{{invoice.items}}", "showHeader": true, "headerHeight": 9, "rowHeight": 7,
+        "alternateRowColor": "#f9fafb", "showFooter": true,
+        "columns": [
+          { "id": "c1", "header": "Beschreibung", "cell": "{{row.description}}", "width": 100, "footer": "Gesamt:" },
+          { "id": "c2", "header": "Menge", "cell": "{{row.qty}}", "width": 25 },
+          { "id": "c3", "header": "Einzelpreis", "cell": "{{row.price}}", "width": 30, "format": "{0:C}" },
+          { "id": "c4", "header": "Summe", "cell": "= row.qty * row.price", "width": 35, "format": "{0:C}", "summary": "sum",
+            "conditional": [{ "when": "= row.qty * row.price > 1000", "style": { "fontWeight": "bold" } }] }
+        ] }
+    ] },
+    { "type": "pageFooter", "height": 12, "elements": [
+      { "id": "pf", "type": "text", "bounds": { "x": 10, "y": 3, "width": 190, "height": 6 },
+        "value": "Seite {{PageNofM}} · erstellt am {{PrintDate}} {{PrintTime}}",
+        "style": { "fontSize": 8, "color": "#9ca3af", "horizontalAlign": "center" } }
+    ] }
+  ]
+}

@@ -5,11 +5,13 @@
   "description": "Moderner webbasierter Report Designer mit KI-Unterstützung – als NPM-Paket, VS Code Extension und Visual Studio Extension",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "dev:web": "npm run dev --workspace apps/web",
+    "dev:invoice": "npm run dev --workspace @xdarkoy/example-invoice-app",
     "dev:designer": "npm run dev --workspace packages/designer",
     "build:designer": "npm run build --workspace packages/designer",
     "build:vscode": "npm run build --workspace apps/vscode-extension",
