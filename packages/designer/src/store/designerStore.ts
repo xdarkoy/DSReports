@@ -130,6 +130,20 @@ function elementFactory(type: ElementType, x: number, y: number): ReportElement 
       };
     case "pagebreak":
       return { ...base, type: "pagebreak", bounds: { x: 0, y, width: 210, height: 0.1 } };
+    case "crosstab":
+      return {
+        ...base,
+        type: "crosstab",
+        bounds: { x, y, width: 150, height: 50 },
+        dataSource: "{{items}}",
+        rowField: "category",
+        columnField: "month",
+        valueField: "amount",
+        aggregate: "sum",
+        showRowTotals: true,
+        showColumnTotals: true,
+        format: "{0:N2}",
+      };
   }
 }
 

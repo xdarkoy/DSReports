@@ -12,6 +12,7 @@ const BASIC: { type: ElementType; label: string }[] = [
 const DATA: { type: ElementType; label: string }[] = [
   { type: "table", label: "Table" },
   { type: "chart", label: "Chart" },
+  { type: "crosstab", label: "Cross-Tab" },
   { type: "barcode", label: "Barcode" },
 ];
 

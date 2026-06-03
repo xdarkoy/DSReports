@@ -231,6 +231,26 @@ export interface PageBreakElement extends BaseElement {
   type: "pagebreak";
 }
 
+/**
+ * Cross-tab / pivot matrix (Crystal-style): distinct values of `rowField` form
+ * the rows, distinct values of `columnField` the columns, and each cell shows
+ * the `aggregate` of `valueField`.
+ */
+export interface CrossTabElement extends BaseElement {
+  type: "crosstab";
+  dataSource: ValueExpr;
+  rowField: string;
+  columnField: string;
+  valueField: string;
+  aggregate?: SummaryFunc;
+  showRowTotals?: boolean;
+  showColumnTotals?: boolean;
+  format?: string;
+  headerStyle?: TextStyle & BoxStyle;
+  cellStyle?: TextStyle & BoxStyle;
+  style?: BoxStyle;
+}
+
 export type ReportElement =
   | TextElement
   | ImageElement
@@ -239,6 +259,7 @@ export type ReportElement =
   | BarcodeElement
   | TableElement
   | ChartElement
+  | CrossTabElement
   | PageBreakElement;
 
 export type ElementType = ReportElement["type"];

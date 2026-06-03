@@ -47,6 +47,9 @@ export const ChartIcon = (p: Props) => (
 export const PageBreakIcon = (p: Props) => (
   <Svg {...p}><path d="M4 12h3M9 12h2M13 12h2M17 12h3" /><path d="M8 4v4M16 4v4M8 16v4M16 16v4" /></Svg>
 );
+export const CrossTabIcon = (p: Props) => (
+  <Svg {...p}><rect x="3" y="3" width="18" height="18" rx="1" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></Svg>
+);
 export const SparkleIcon = (p: Props) => (
   <Svg {...p}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5 5l2.5 2.5M16.5 16.5 19 19M5 19l2.5-2.5M16.5 7.5 19 5" /></Svg>
 );
@@ -89,5 +92,6 @@ export const ELEMENT_ICONS: Record<ElementType, (p: Props) => JSX.Element> = {
   barcode: BarcodeIcon,
   table: TableIcon,
   chart: ChartIcon,
+  crosstab: CrossTabIcon,
   pagebreak: PageBreakIcon,
 };

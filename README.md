@@ -91,6 +91,9 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
    Seiten um; `pageHeader`/`pageFooter` wiederholen sich, `reportHeader` nur
    auf Seite 1, `reportFooter` + Gesamtsumme auf der letzten Seite; `{{Page}}`/
    `{{PageCount}}` zeigen echte Werte (Designer-Canvas zeigt Seite 1)
+ - **Cross-Tab / Pivot** – Matrix aus `rowField` × `columnField` mit
+   `aggregate` (sum/avg/count/min/max) von `valueField`, inkl. Zeilen-/
+   Spaltensummen
  - **Drag-and-drop** – Toolbox-Elemente *und* Datenfelder auf Bands/Elemente
  - **Snap-to-grid**, Arrow-Key-Nudging, Resize-Handles, Undo/Redo
  - **Data Explorer** – JSON paste-and-bind, Baumansicht, Drag von Feldern

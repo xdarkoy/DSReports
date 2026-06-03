@@ -6,6 +6,7 @@ canvas uses points (72pt = 1in) with origin bottom-left, so we translate.
 from __future__ import annotations
 
 import io
+import math
 from datetime import datetime
 from typing import Any, Mapping, Optional
 
@@ -13,7 +14,7 @@ from reportlab.lib.pagesizes import A3, A4, A5, LETTER, LEGAL, landscape
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as pdf_canvas
 
-from .expression import apply_format, evaluate_array, evaluate_bool, evaluate_value
+from .expression import apply_format, evaluate_array, evaluate_bool, evaluate_value, _to_str
 from .image_policy import ImagePolicy, default_image_policy
 
 PAGE_SIZES = {
@@ -252,6 +253,8 @@ def _render_element(
         _barcode(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
     elif kind == "table":
         _table(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
+    elif kind == "crosstab":
+        _crosstab(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
     elif kind == "chart":
         # Charts are out of scope for the baseline renderer; draw a placeholder.
         c.saveState()
@@ -481,6 +484,102 @@ def _table(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: floa
     c.setStrokeColorRGB(0.85, 0.85, 0.88)
     c.setLineWidth(0.3)
     c.rect(x, y, w, h, fill=0, stroke=1)
+    c.restoreState()
+
+
+def _pivot(rows: list, row_field: str, col_field: str, val_field: str, agg: str):
+    """Compute a cross-tab matrix. Mirrors packages/designer/src/utils/pivot.ts."""
+    row_keys: list = []
+    col_keys: list = []
+    rseen: set = set()
+    cseen: set = set()
+    buckets: dict = {}
+    for row in rows:
+        rec = row if isinstance(row, Mapping) else {}
+        r = _to_str(rec.get(row_field))
+        col = _to_str(rec.get(col_field))
+        try:
+            v = float(rec.get(val_field))
+        except (TypeError, ValueError):
+            v = math.nan
+        if r not in rseen:
+            rseen.add(r)
+            row_keys.append(r)
+        if col not in cseen:
+            cseen.add(col)
+            col_keys.append(col)
+        buckets.setdefault((r, col), []).append(v)
+    cells: dict = {}
+    row_totals: dict = {}
+    col_totals = {c: 0.0 for c in col_keys}
+    grand = 0.0
+    for r in row_keys:
+        cells[r] = {}
+        row_totals[r] = 0.0
+        for col in col_keys:
+            vals = buckets.get((r, col), [])
+            val = _aggregate(agg, [v for v in vals if not math.isnan(v)] if agg != "count" else vals, len(vals)) if vals else 0.0
+            cells[r][col] = val
+            row_totals[r] += val
+            col_totals[col] += val
+            grand += val
+    return row_keys, col_keys, cells, row_totals, col_totals, grand
+
+
+def _crosstab(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: float, ctx: Mapping[str, Any]) -> None:
+    rows = evaluate_array(el.get("dataSource", ""), ctx)
+    row_keys, col_keys, cells, row_totals, col_totals, grand = _pivot(
+        rows, el.get("rowField", ""), el.get("columnField", ""), el.get("valueField", ""), el.get("aggregate", "sum"),
+    )
+    show_rt = el.get("showRowTotals", True)
+    show_ct = el.get("showColumnTotals", True)
+    fmt = el.get("format")
+    ncols = 1 + len(col_keys) + (1 if show_rt else 0)
+    nrows = 1 + len(row_keys) + (1 if show_ct else 0)
+    if ncols < 1 or nrows < 1:
+        return
+    cw = w / ncols
+    ch = h / nrows
+
+    def cell_text(cx, cy, text, *, bold=False, align="right", header=False):
+        if header:
+            c.setFillColorRGB(0.93, 0.94, 0.97)
+            c.rect(cx, cy, cw, ch, fill=1, stroke=0)
+        c.setStrokeColorRGB(0.85, 0.85, 0.88)
+        c.setLineWidth(0.3)
+        c.rect(cx, cy, cw, ch, fill=0, stroke=1)
+        c.setFillColorRGB(0.07, 0.09, 0.15)
+        c.setFont("Helvetica-Bold" if (bold or header) else "Helvetica", 8)
+        s = str(text)
+        if align == "right":
+            c.drawRightString(cx + cw - 3, cy + ch / 2 - 3, s)
+        else:
+            c.drawString(cx + 3, cy + ch / 2 - 3, s)
+
+    c.saveState()
+    top = y + h
+    # header row
+    cell_text(x, top - ch, f"{el.get('rowField','')}\\{el.get('columnField','')}", header=True, align="left")
+    for j, ck in enumerate(col_keys):
+        cell_text(x + (1 + j) * cw, top - ch, ck, header=True)
+    if show_rt:
+        cell_text(x + (ncols - 1) * cw, top - ch, "Σ", header=True)
+    # body rows
+    for i, rk in enumerate(row_keys):
+        ry = top - (2 + i) * ch
+        cell_text(x, ry, rk, header=True, align="left")
+        for j, ck in enumerate(col_keys):
+            cell_text(x + (1 + j) * cw, ry, apply_format(cells[rk][ck], fmt))
+        if show_rt:
+            cell_text(x + (ncols - 1) * cw, ry, apply_format(row_totals[rk], fmt), bold=True)
+    # totals row
+    if show_ct:
+        ty = top - (1 + len(row_keys) + 1) * ch
+        cell_text(x, ty, "Σ", header=True, align="left")
+        for j, ck in enumerate(col_keys):
+            cell_text(x + (1 + j) * cw, ty, apply_format(col_totals[ck], fmt), bold=True)
+        if show_rt:
+            cell_text(x + (ncols - 1) * cw, ty, apply_format(grand, fmt), bold=True)
     c.restoreState()
 
 

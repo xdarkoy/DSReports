@@ -1,6 +1,7 @@
 import type {
   BarcodeElement,
   ChartElement,
+  CrossTabElement,
   ImageElement,
   LineElement,
   PageBreakElement,
@@ -14,6 +15,7 @@ import { applyFormat, evaluateArray, evaluateValue } from "../utils/expression";
 import { aggregate } from "../utils/reportFields";
 import { mergeConditional } from "../utils/conditional";
 import { shapeRows, groupRows } from "../utils/tableData";
+import { pivot } from "../utils/pivot";
 
 export function renderElement(el: ReportElement, data: Record<string, unknown>, pxPerMm: number): JSX.Element {
   switch (el.type) {
@@ -24,8 +26,46 @@ export function renderElement(el: ReportElement, data: Record<string, unknown>, 
     case "barcode": return <BarcodeR el={el} data={data} />;
     case "table": return <TableR el={el} data={data} pxPerMm={pxPerMm} />;
     case "chart": return <ChartR el={el} data={data} />;
+    case "crosstab": return <CrossTabR el={el} data={data} />;
     case "pagebreak": return <PageBreakR el={el} />;
   }
+}
+
+function CrossTabR({ el, data }: { el: CrossTabElement; data: Record<string, unknown> }) {
+  const rows = evaluateArray(el.dataSource ?? "", data);
+  const p = pivot(rows, el.rowField, el.columnField, el.valueField, el.aggregate ?? "sum");
+  const fmt = (n: number) => applyFormat(n, el.format);
+  const hSt = styleOf(el.headerStyle);
+  const cSt = styleOf(el.cellStyle);
+  return (
+    <table className="rd-tbl rd-crosstab">
+      <thead>
+        <tr>
+          <th style={hSt}>{el.rowField} \ {el.columnField}</th>
+          {p.colKeys.map((c) => <th key={c} style={{ ...hSt, textAlign: "right" }}>{c}</th>)}
+          {el.showRowTotals && <th style={{ ...hSt, textAlign: "right" }}>Σ</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {p.rowKeys.map((r) => (
+          <tr key={r}>
+            <th style={{ ...hSt, textAlign: "left" }}>{r}</th>
+            {p.colKeys.map((c) => <td key={c} style={{ ...cSt, textAlign: "right" }}>{fmt(p.cells[r][c])}</td>)}
+            {el.showRowTotals && <td style={{ ...cSt, textAlign: "right", fontWeight: 600 }}>{fmt(p.rowTotals[r])}</td>}
+          </tr>
+        ))}
+      </tbody>
+      {el.showColumnTotals && (
+        <tfoot>
+          <tr style={{ fontWeight: 600 }}>
+            <th style={{ ...hSt, textAlign: "left" }}>Σ</th>
+            {p.colKeys.map((c) => <td key={c} style={{ ...cSt, textAlign: "right" }}>{fmt(p.colTotals[c])}</td>)}
+            {el.showRowTotals && <td style={{ ...cSt, textAlign: "right" }}>{fmt(p.grand)}</td>}
+          </tr>
+        </tfoot>
+      )}
+    </table>
+  );
 }
 
 function TextR({ el, data }: { el: TextElement; data: Record<string, unknown> }) {

@@ -3,6 +3,7 @@ import type {
   ChartElement,
   ChartKind,
   ConditionalFormat,
+  CrossTabElement,
   ImageElement,
   LineElement,
   Parameter,
@@ -108,6 +109,7 @@ export function PropertyGrid() {
       {el.type === "barcode" && <BarcodeProps el={el} patch={patch} />}
       {el.type === "table" && <TableProps el={el} patch={patch} />}
       {el.type === "chart" && <ChartProps el={el} patch={patch} />}
+      {el.type === "crosstab" && <CrossTabProps el={el} patch={patch} />}
     </div>
   );
 }
@@ -513,6 +515,40 @@ function ChartProps({ el, patch }: { el: ChartElement; patch: (u: (el: ReportEle
       </Field>
       <Field label="Title">
         <input value={el.title ?? ""} onChange={(e) => patch((p) => ({ ...(p as ChartElement), title: e.target.value || undefined }))} />
+      </Field>
+    </Group>
+  );
+}
+
+function CrossTabProps({ el, patch }: { el: CrossTabElement; patch: (u: (el: ReportElement) => ReportElement) => void }) {
+  const set = (k: keyof CrossTabElement, v: any) => patch((p) => ({ ...(p as CrossTabElement), [k]: v }));
+  return (
+    <Group title="Cross-Tab">
+      <Field label="Source">
+        <input value={el.dataSource} placeholder="{{sales}}" onChange={(e) => set("dataSource", e.target.value)} />
+      </Field>
+      <Field label="Row field">
+        <input value={el.rowField} placeholder="category" onChange={(e) => set("rowField", e.target.value)} />
+      </Field>
+      <Field label="Column field">
+        <input value={el.columnField} placeholder="month" onChange={(e) => set("columnField", e.target.value)} />
+      </Field>
+      <Field label="Value field">
+        <input value={el.valueField} placeholder="amount" onChange={(e) => set("valueField", e.target.value)} />
+      </Field>
+      <Field label="Aggregate">
+        <select value={el.aggregate ?? "sum"} onChange={(e) => set("aggregate", e.target.value)}>
+          {(["sum", "avg", "count", "min", "max"] as const).map((s) => <option key={s}>{s}</option>)}
+        </select>
+      </Field>
+      <Field label="Format">
+        <input value={el.format ?? ""} placeholder="{0:N2}" onChange={(e) => set("format", e.target.value || undefined)} />
+      </Field>
+      <Field label="Row totals">
+        <input type="checkbox" checked={el.showRowTotals !== false} onChange={(e) => set("showRowTotals", e.target.checked)} />
+      </Field>
+      <Field label="Col totals">
+        <input type="checkbox" checked={el.showColumnTotals !== false} onChange={(e) => set("showColumnTotals", e.target.checked)} />
       </Field>
     </Group>
   );

@@ -48,6 +48,7 @@ Tables can also "filter" rows ("= row.qty > 0") and "sort" them ([{"field":"pric
 Conditional formatting: text elements and table columns accept "conditional": [{ "when": "= row.total < 0", "style": { "color": "#ff0000", "fontWeight": "bold", "backgroundColor": "#fee" } }].
 Grouping: a table may set "groupBy": "category" with "groupHeader": "Kategorie: {{group}}" and "showGroupFooter": true to render a header + subtotal row per group (subtotals use each column's "summary").
 Parameters: define report parameters in "parameters": [{ "id": "...", "name": "year", "type": "number", "defaultValue": 2024 }] and reference them anywhere as {{params.year}}.
+Cross-tab element: { "type": "crosstab", "dataSource": "{{sales}}", "rowField": "category", "columnField": "month", "valueField": "amount", "aggregate": "sum", "showRowTotals": true, "showColumnTotals": true, "format": "{0:N2}" } renders a pivot matrix (rowField × columnField, aggregated valueField).
 
 Schema (condensed):
 {
