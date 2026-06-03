@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [development, main]
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Build & typecheck (JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build all packages + apps
+        run: npm run build
+      - name: Type-check
+        run: |
+          npx tsc --noEmit -p packages/designer/tsconfig.json
+          npx tsc --noEmit -p packages/ai/tsconfig.json
+          npx tsc --noEmit -p apps/web/tsconfig.json
+
+  backend:
+    name: Backend render smoke (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e backend
+      - name: py_compile
+        run: python -m py_compile backend/reporting_backend/renderer.py backend/reporting_backend/expression.py backend/reporting_backend/server.py backend/reporting_backend/image_policy.py
+      - name: Render a PDF
+        run: python -c "from reporting_backend.renderer import render_report_to_pdf as r; d={'page':{'size':'A4','orientation':'portrait','margin':{'top':10,'right':10,'bottom':10,'left':10},'unit':'mm'},'bands':[{'type':'body','height':50,'elements':[{'id':'a','type':'text','bounds':{'x':10,'y':10,'width':100,'height':10},'value':'Hello CI'}]}]}; p=r(d,{}); assert p[:4]==b'%PDF', 'not a PDF'; print('PDF ok', len(p), 'bytes')"
+
+  vs-extension:
+    name: Visual Studio extension build (.NET)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the React webview into Resources
+        run: pwsh scripts/build-webview.ps1
+      - name: dotnet build
+        run: dotnet build extensions/visualstudio/ReportDesigner.VsExtension.csproj -c Release
