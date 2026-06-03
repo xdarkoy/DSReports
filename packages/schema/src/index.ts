@@ -285,9 +285,22 @@ export type ElementType = ReportElement["type"];
 export type BandType =
   | "pageHeader"
   | "reportHeader"
+  | "groupHeader"
   | "body"
+  | "groupFooter"
   | "reportFooter"
   | "pageFooter";
+
+/**
+ * Report-level grouping (Crystal-style banded master-detail): the master array
+ * is grouped by `field`; for each group the groupHeader band, the body, and the
+ * groupFooter band are rendered. Inside those bands, `{{group}}` is the group
+ * value, `{{groupItems}}` the group's rows and `{{GroupCount}}` their count.
+ */
+export interface ReportGrouping {
+  dataSource: ValueExpr;
+  field: string;
+}
 
 export interface Band {
   type: BandType;
@@ -347,6 +360,8 @@ export interface ReportDocument {
   dataSources: DataSource[];
   parameters: Parameter[];
   bands: Band[];
+  /** optional report-level grouping (repeats groupHeader/body/groupFooter per group) */
+  grouping?: ReportGrouping;
 }
 
 // ---------------------------------------------------------------------------

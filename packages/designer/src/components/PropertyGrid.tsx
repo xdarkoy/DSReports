@@ -158,8 +158,58 @@ function ReportProps() {
         <NumField label="Margin B" value={doc.page.margin.bottom} onChange={(v) => setDocument({ ...doc, page: { ...doc.page, margin: { ...doc.page.margin, bottom: v } } })} />
         <NumField label="Margin L" value={doc.page.margin.left} onChange={(v) => setDocument({ ...doc, page: { ...doc.page, margin: { ...doc.page.margin, left: v } } })} />
       </Group>
+      <ReportGroupingGroup />
       <ParametersGroup />
     </>
+  );
+}
+
+const BAND_ORDER = ["pageHeader", "reportHeader", "groupHeader", "body", "groupFooter", "reportFooter", "pageFooter"];
+
+function ReportGroupingGroup() {
+  const doc = useDesignerStore((s) => s.doc);
+  const setDocument = useDesignerStore((s) => s.setDocument);
+  const grouping = doc.grouping;
+  const hasBand = (t: string) => doc.bands.some((b) => b.type === t);
+  const toggleBand = (t: any) => {
+    const bands = hasBand(t)
+      ? doc.bands.filter((b) => b.type !== t)
+      : [...doc.bands, { type: t, height: 15, elements: [] }].sort(
+          (a, b) => BAND_ORDER.indexOf(a.type) - BAND_ORDER.indexOf(b.type),
+        );
+    setDocument({ ...doc, bands });
+  };
+  const setG = (patch: any) =>
+    setDocument({ ...doc, grouping: { dataSource: grouping?.dataSource ?? "", field: grouping?.field ?? "", ...patch } });
+  return (
+    <Group title="Report grouping">
+      <Field label="Enabled">
+        <input
+          type="checkbox"
+          checked={!!grouping}
+          onChange={(e) => setDocument({ ...doc, grouping: e.target.checked ? { dataSource: "", field: "" } : undefined })}
+        />
+      </Field>
+      {grouping && (
+        <>
+          <Field label="Master data">
+            <input value={grouping.dataSource} placeholder="{{sales}}" onChange={(e) => setG({ dataSource: e.target.value })} />
+          </Field>
+          <Field label="Group field">
+            <input value={grouping.field} placeholder="region" onChange={(e) => setG({ field: e.target.value })} />
+          </Field>
+          <Field label="Group header band">
+            <input type="checkbox" checked={hasBand("groupHeader")} onChange={() => toggleBand("groupHeader")} />
+          </Field>
+          <Field label="Group footer band">
+            <input type="checkbox" checked={hasBand("groupFooter")} onChange={() => toggleBand("groupFooter")} />
+          </Field>
+          <div style={{ fontSize: 10, color: "var(--rd-muted)" }}>
+            In group bands use <code>{"{{group}}"}</code>, <code>{"{{groupItems}}"}</code> (bind a table to it) and <code>{"{{GroupCount}}"}</code>.
+          </div>
+        </>
+      )}
+    </Group>
   );
 }
 

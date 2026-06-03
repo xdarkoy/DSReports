@@ -50,6 +50,7 @@ Grouping: a table may set "groupBy": "category" with "groupHeader": "Kategorie: 
 Parameters: define report parameters in "parameters": [{ "id": "...", "name": "year", "type": "number", "defaultValue": 2024 }] and reference them anywhere as {{params.year}}.
 Cross-tab element: { "type": "crosstab", "dataSource": "{{sales}}", "rowField": "category", "columnField": "month", "valueField": "amount", "aggregate": "sum", "showRowTotals": true, "showColumnTotals": true, "format": "{0:N2}" } renders a pivot matrix (rowField × columnField, aggregated valueField).
 Sub-report element: { "type": "subreport", "dataSource": "{{order.customer}}", "document": <a nested ReportDocument> } embeds the nested report's content bands, bound to the resolved data slice (its fields are directly available in the nested bindings).
+Band-level grouping: set top-level "grouping": { "dataSource": "{{sales}}", "field": "region" } and add "groupHeader"/"groupFooter" bands; they repeat per group with {{group}}, {{groupItems}} (bind a table's dataSource to it) and {{GroupCount}} available. Band order: pageHeader, reportHeader, groupHeader, body, groupFooter, reportFooter, pageFooter.
 
 Schema (condensed):
 {

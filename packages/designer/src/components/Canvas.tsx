@@ -11,14 +11,17 @@ import {
 } from "@reporting/schema";
 import { useDesignerStore } from "../store/designerStore";
 import { ElementView } from "./ElementView";
-import { evaluateArray } from "../utils/expression";
+import { evaluateArray, resolveBinding } from "../utils/expression";
 import { columnsFromData } from "../utils/binding";
 import { systemFields } from "../utils/reportFields";
+import { groupRows } from "../utils/tableData";
 
 const BAND_LABELS: Record<BandType, string> = {
   pageHeader: "Page Header",
   reportHeader: "Report Header",
+  groupHeader: "Group Header",
   body: "Body",
+  groupFooter: "Group Footer",
   reportFooter: "Report Footer",
   pageFooter: "Page Footer",
 };
@@ -42,9 +45,24 @@ export function Canvas() {
 
   const dataCtx = useMemo<Record<string, unknown>>(() => {
     const base = sampleData && typeof sampleData === "object" ? (sampleData as Record<string, unknown>) : {};
-    // Inject report parameters ({{params.x}}) and Crystal-style special fields.
-    return { ...base, params: resolveParameters(doc.parameters), ...systemFields({ title: doc.meta.title }) };
-  }, [sampleData, doc.meta.title, doc.parameters]);
+    const ctx: Record<string, unknown> = {
+      ...base,
+      params: resolveParameters(doc.parameters),
+      ...systemFields({ title: doc.meta.title }),
+    };
+    // When the report is grouped, preview shows the FIRST group's context so
+    // {{group}}/{{groupItems}} resolve in the group bands.
+    if (doc.grouping?.field) {
+      const master = resolveBinding(doc.grouping.dataSource, ctx);
+      if (Array.isArray(master) && master.length) {
+        const first = groupRows(master, doc.grouping.field)[0];
+        ctx.group = first.key;
+        ctx.groupItems = first.rows;
+        ctx.GroupCount = first.rows.length;
+      }
+    }
+    return ctx;
+  }, [sampleData, doc.meta.title, doc.parameters, doc.grouping]);
 
   const handleDrop = (e: React.DragEvent, band: Band) => {
     e.preventDefault();

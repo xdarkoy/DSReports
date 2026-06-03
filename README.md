@@ -97,6 +97,10 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
  - **Sub-Reports** – eingebetteter Report (`document`), gebunden an einen
    Daten-Ausschnitt (`dataSource`, z. B. `{{order.customer}}`); rendert die
    Content-Bands innerhalb der Element-Grenzen
+ - **Band-Level-Gruppen** – Report-`grouping` (Master-Array + Feld) wiederholt
+   `groupHeader`/`body`/`groupFooter` je Gruppe (Seitenumbruch zwischen
+   Gruppen); im Band: `{{group}}`, `{{groupItems}}` (Tabelle daran binden),
+   `{{GroupCount}}`
  - **Drag-and-drop** – Toolbox-Elemente *und* Datenfelder auf Bands/Elemente
  - **Snap-to-grid**, Arrow-Key-Nudging, Resize-Handles, Undo/Redo
  - **Data Explorer** – JSON paste-and-bind, Baumansicht, Drag von Feldern

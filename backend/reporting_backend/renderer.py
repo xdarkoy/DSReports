@@ -57,6 +57,11 @@ def render_report_to_pdf(
         "params": _resolve_parameters(doc),
     }
 
+    # Report-level (band) grouping takes its own render path.
+    if doc.get("grouping") and _render_grouped(c, doc, bands, base_ctx, page_h_pt, page_h_mm, policy):
+        c.save()
+        return buf.getvalue()
+
     # Plan pages: a single "detail" table in the body whose rows overflow its
     # area is split across pages (page header/footer repeat). Everything else
     # is one page. Grouped tables stay single-page for now.
@@ -78,6 +83,74 @@ def render_report_to_pdf(
 def _band_h(bands: list, kind: str) -> float:
     b = _band(bands, kind)
     return float(b.get("height", 0) or 0) if b else 0.0
+
+
+def _render_grouped(c: pdf_canvas.Canvas, doc: Mapping[str, Any], bands: list, base_ctx: dict,
+                    page_h_pt: float, page_h_mm: float, policy: ImagePolicy) -> bool:
+    """Band-level grouping: repeat groupHeader/body/groupFooter per group, with
+    page breaks between groups. Returns False (use the normal path) if the
+    grouping master data is missing/empty."""
+    g = doc.get("grouping") or {}
+    master = resolve_binding(g.get("dataSource"), base_ctx)
+    if not isinstance(master, list) or not master:
+        return False
+    groups = _group_rows(master, g.get("field"))
+
+    ph_h = _band_h(bands, "pageHeader")
+    rh_h = _band_h(bands, "reportHeader")
+    gh_h = _band_h(bands, "groupHeader")
+    body_h = _band_h(bands, "body")
+    gf_h = _band_h(bands, "groupFooter")
+    rf_h = _band_h(bands, "reportFooter")
+    pf_h = _band_h(bands, "pageFooter")
+    block = gh_h + body_h + gf_h
+    body_bottom = page_h_mm - pf_h - rf_h
+
+    # assign each group to a page and a y offset
+    placements: list = []  # (page, y_mm)
+    page = 0
+    y = ph_h + rh_h
+    for i in range(len(groups)):
+        if i > 0 and y + block > body_bottom + 1e-6:
+            page += 1
+            y = ph_h
+        placements.append((page, y))
+        y += block
+    total = page + 1
+
+    page_header = _band(bands, "pageHeader")
+    report_header = _band(bands, "reportHeader")
+    gh_band = _band(bands, "groupHeader")
+    body_band = _band(bands, "body")
+    gf_band = _band(bands, "groupFooter")
+    report_footer = _band(bands, "reportFooter")
+    page_footer = _band(bands, "pageFooter")
+
+    for p in range(total):
+        pctx = {**base_ctx, **_system_fields(doc, page=p + 1, page_count=total)}
+        if page_header:
+            _render_band(c, page_header, 0.0, page_h_pt, pctx, policy)
+        if p == 0 and report_header:
+            _render_band(c, report_header, ph_h, page_h_pt, pctx, policy)
+        for (gp, gy), (key, rows) in zip(placements, groups):
+            if gp != p:
+                continue
+            gctx = {**pctx, "group": key, "groupItems": rows, "GroupCount": len(rows)}
+            top = gy
+            if gh_band:
+                _render_band(c, gh_band, top, page_h_pt, gctx, policy)
+            top += gh_h
+            if body_band:
+                _render_band(c, body_band, top, page_h_pt, gctx, policy)
+            top += body_h
+            if gf_band:
+                _render_band(c, gf_band, top, page_h_pt, gctx, policy)
+        if p == total - 1 and report_footer:
+            _render_band(c, report_footer, page_h_mm - pf_h - rf_h, page_h_pt, pctx, policy)
+        if page_footer:
+            _render_band(c, page_footer, page_h_mm - pf_h, page_h_pt, pctx, policy)
+        c.showPage()
+    return True
 
 
 def _table_footer_h(table: dict) -> float:
