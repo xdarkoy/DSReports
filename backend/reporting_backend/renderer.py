@@ -51,32 +51,162 @@ def render_report_to_pdf(
 
     bands = doc.get("bands", []) or []
     base = data if data is not None else _extract_data(doc)
-    # Merge report parameters and Crystal-style special fields onto the data.
-    ctx: Mapping[str, Any] = {
+    base_ctx: dict = {
         **(base if isinstance(base, Mapping) else {}),
         "params": _resolve_parameters(doc),
-        **_system_fields(doc),
     }
 
-    # Flow bands: stack downward from the top of the page.
-    y_cursor_mm = 0.0
-    for kind in _FLOW_BANDS:
-        band = _band(bands, kind)
-        if band:
-            _render_band(c, band, y_cursor_mm, page_h_pt, ctx, policy)
-            y_cursor_mm += float(band.get("height", 0) or 0)
+    # Plan pages: a single "detail" table in the body whose rows overflow its
+    # area is split across pages (page header/footer repeat). Everything else
+    # is one page. Grouped tables stay single-page for now.
+    plan = _plan_pages(bands, base_ctx, page_h_mm)
 
-    # Bottom bands: stack upward from the bottom of the page.
-    y_bottom_mm = page_h_mm
-    for kind in _BOTTOM_BANDS:
-        band = _band(bands, kind)
-        if band:
-            y_bottom_mm -= float(band.get("height", 0) or 0)
-            _render_band(c, band, y_bottom_mm, page_h_pt, ctx, policy)
+    for i, pg in enumerate(plan):
+        ctx: Mapping[str, Any] = {
+            **base_ctx,
+            **_system_fields(doc, page=i + 1, page_count=len(plan)),
+        }
+        _render_page(c, bands, pg, page_h_pt, page_h_mm, ctx, policy,
+                     is_first=(i == 0), is_last=(i == len(plan) - 1))
+        c.showPage()
 
-    c.showPage()
     c.save()
     return buf.getvalue()
+
+
+def _band_h(bands: list, kind: str) -> float:
+    b = _band(bands, kind)
+    return float(b.get("height", 0) or 0) if b else 0.0
+
+
+def _table_footer_h(table: dict) -> float:
+    """Height (mm) reserved for the table's own summary footer, if shown."""
+    if not table.get("showFooter"):
+        return 0.0
+    return float(table.get("footerHeight") or table.get("rowHeight") or 7)
+
+
+def _content_bottom_mm(bands: list, page_h_mm: float, table: dict) -> float:
+    """Lowest Y (mm from page top) the paginating table may draw to. Reserves the
+    page footer, report footer AND the table summary footer on EVERY page so the
+    planned rows always fit and the summary footer never overflows the last page."""
+    return (
+        page_h_mm
+        - _band_h(bands, "pageFooter")
+        - _band_h(bands, "reportFooter")
+        - _table_footer_h(table)
+    )
+
+
+def _plan_pages(bands: list, base_ctx: dict, page_h_mm: float) -> list[dict]:
+    """Return a list of per-page plans. Each plan: {table, row_start, row_end, rows}.
+
+    Only the first visible, non-grouped body table that overflows triggers pagination.
+    """
+    body = _band(bands, "body")
+    single = [{"table": None, "row_start": 0, "row_end": 0, "rows": []}]
+    if not body:
+        return single
+
+    ph_h = _band_h(bands, "pageHeader")
+    rh_h = _band_h(bands, "reportHeader")
+
+    # locate a paginating table
+    table = None
+    rows: list = []
+    for el in body.get("elements", []):
+        if el.get("type") != "table" or el.get("groupBy") or el.get("visible") is False:
+            continue
+        if not evaluate_bool(el.get("visibleIf"), base_ctx):
+            continue
+        tbl_ctx = {**base_ctx}
+        erows = _shape_rows(evaluate_array(el.get("dataSource", ""), tbl_ctx), el, tbl_ctx)
+        row_h = float(el.get("rowHeight") or 7)
+        hdr_h = float(el.get("headerHeight") or 8) if el.get("showHeader", True) else 0.0
+        top1 = ph_h + rh_h + float(el.get("bounds", {}).get("y", 0))
+        cap1 = max(1, int((_content_bottom_mm(bands, page_h_mm, el) - top1 - hdr_h) // row_h))
+        if len(erows) > cap1:
+            table, rows = el, erows
+            break
+
+    if table is None:
+        return single
+
+    # build slices (plan and render share _content_bottom_mm so caps match exactly)
+    row_h = float(table.get("rowHeight") or 7)
+    hdr_h = float(table.get("headerHeight") or 8) if table.get("showHeader", True) else 0.0
+    bottom = _content_bottom_mm(bands, page_h_mm, table)
+    top1 = ph_h + rh_h + float(table.get("bounds", {}).get("y", 0))
+    topN = ph_h  # continuation pages: table starts just below the page header
+    cap1 = max(1, int((bottom - top1 - hdr_h) // row_h))
+    capN = max(1, int((bottom - topN - hdr_h) // row_h))
+
+    plan: list[dict] = []
+    start = 0
+    first = True
+    while start < len(rows):
+        end = min(len(rows), start + (cap1 if first else capN))
+        plan.append({"table": table, "row_start": start, "row_end": end, "rows": rows})
+        start = end
+        first = False
+    return plan or single
+
+
+def _render_page(c, bands: list, pg: dict, page_h_pt: float, page_h_mm: float,
+                 ctx: Mapping[str, Any], policy: ImagePolicy, *, is_first: bool, is_last: bool) -> None:
+    ph_h = _band_h(bands, "pageHeader")
+    rh_h = _band_h(bands, "reportHeader")
+    pf_h = _band_h(bands, "pageFooter")
+    rf_h = _band_h(bands, "reportFooter")
+    paginating = pg.get("table") is not None
+
+    # page header: every page
+    header = _band(bands, "pageHeader")
+    if header:
+        _render_band(c, header, 0.0, page_h_pt, ctx, policy)
+
+    # report header: first page only
+    if is_first:
+        rh = _band(bands, "reportHeader")
+        if rh:
+            _render_band(c, rh, ph_h, page_h_pt, ctx, policy)
+
+    # body
+    body = _band(bands, "body")
+    if body:
+        body_top = ph_h + rh_h
+        table = pg.get("table")
+        if not paginating:
+            _render_band(c, body, body_top, page_h_pt, ctx, policy)
+        else:
+            # first page: render the non-paginating body elements at their
+            # positions; continuation pages: only the continued table.
+            if is_first:
+                for el in body.get("elements", []):
+                    if el is table:
+                        continue
+                    if el.get("visible") is False or not evaluate_bool(el.get("visibleIf"), ctx):
+                        continue
+                    _render_element(c, el, body_top, page_h_pt, ctx, policy)
+                table_top = body_top + float(table.get("bounds", {}).get("y", 0))
+            else:
+                table_top = ph_h
+            # Same bottom as the planner used, so the rendered row window never
+            # under/overfills a page.
+            bottom_mm = _content_bottom_mm(bands, page_h_mm, table)
+            _render_table_window(c, table, table_top, bottom_mm, page_h_pt, ctx,
+                                  pg["rows"], pg["row_start"], pg["row_end"], draw_footer=is_last)
+
+    # report footer: last page only
+    if is_last:
+        rf = _band(bands, "reportFooter")
+        if rf:
+            _render_band(c, rf, page_h_mm - pf_h - rf_h, page_h_pt, ctx, policy)
+
+    # page footer: every page
+    footer = _band(bands, "pageFooter")
+    if footer:
+        _render_band(c, footer, page_h_mm - pf_h, page_h_pt, ctx, policy)
 
 
 # ---------------------------------------------------------------------------
@@ -351,6 +481,110 @@ def _table(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: floa
     c.setStrokeColorRGB(0.85, 0.85, 0.88)
     c.setLineWidth(0.3)
     c.rect(x, y, w, h, fill=0, stroke=1)
+    c.restoreState()
+
+
+def _render_table_window(
+    c: pdf_canvas.Canvas, el: dict, table_top_mm: float, bottom_mm: float, page_h_pt: float,
+    ctx: Mapping[str, Any], rows: list, start: int, end: int, *, draw_footer: bool,
+) -> None:
+    """Render a pre-shaped table over the row window [start:end], repeating the
+    column header. Used by the paginated render path. Running totals accumulate
+    from row 0 (so they stay correct across page boundaries)."""
+    columns = el.get("columns", [])
+    if not columns:
+        return
+    b = el.get("bounds", {})
+    x = float(b.get("x", 0)) * mm
+    w = float(b.get("width", 0)) * mm
+    col_total = sum(col.get("width", 10) for col in columns) or 1
+    col_widths = [(col.get("width", 10) / col_total) * w for col in columns]
+    row_h_pt = float(el.get("rowHeight") or 7) * mm
+    hdr_h_pt = float(el.get("headerHeight") or 8) * mm if el.get("showHeader", True) else 0.0
+    y_top = page_h_pt - table_top_mm * mm
+    y_top_initial = y_top
+    y_limit = page_h_pt - bottom_mm * mm
+    fit_eps = 0.5  # pt: guard against float drift dropping a planned row
+
+    c.saveState()
+    # header
+    if el.get("showHeader", True):
+        c.setFillColorRGB(0.95, 0.95, 0.95)
+        c.rect(x, y_top - hdr_h_pt, w, hdr_h_pt, fill=1, stroke=0)
+        c.setFillColorRGB(0.07, 0.09, 0.15)
+        c.setFont("Helvetica-Bold", 9)
+        cur_x = x
+        for i, col in enumerate(columns):
+            c.drawString(cur_x + 3, y_top - hdr_h_pt + 3, str(evaluate_value(col.get("header", ""), ctx)))
+            cur_x += col_widths[i]
+        y_top -= hdr_h_pt
+
+    # seed running totals with rows before this window (key falls back to the
+    # column index when no explicit id, matching the single-page _table)
+    running: dict = {}
+    for i, col in enumerate(columns):
+        if col.get("runningTotal"):
+            key = col.get("id", i)
+            acc = 0.0
+            for r in rows[:start]:
+                try:
+                    acc += float(evaluate_value(col.get("cell", ""), {**ctx, "row": r}))
+                except (TypeError, ValueError):
+                    pass
+            running[key] = acc
+
+    # rows in this window
+    for idx in range(start, end):
+        if y_top - row_h_pt < y_limit - fit_eps:
+            break
+        row = rows[idx]
+        if idx % 2 == 1 and el.get("alternateRowColor"):
+            c.setFillColorRGB(*_hex(el["alternateRowColor"]))
+            c.rect(x, y_top - row_h_pt, w, row_h_pt, fill=1, stroke=0)
+        cur_x = x
+        for i, col in enumerate(columns):
+            cell_ctx = {**ctx, "row": row, "RowNumber": idx + 1}
+            cstyle = _merge_conditional(col.get("cellStyle") or {}, col.get("conditional"), cell_ctx)
+            bg = cstyle.get("backgroundColor")
+            if bg:
+                c.setFillColorRGB(*_hex(bg))
+                c.rect(cur_x, y_top - row_h_pt, col_widths[i], row_h_pt, fill=1, stroke=0)
+            if col.get("runningTotal"):
+                key = col.get("id", i)
+                try:
+                    running[key] = running.get(key, 0.0) + float(evaluate_value(col.get("cell", ""), cell_ctx))
+                except (TypeError, ValueError):
+                    pass
+                value = apply_format(running.get(key, 0.0), col.get("format"))
+            else:
+                value = apply_format(evaluate_value(col.get("cell", ""), cell_ctx), col.get("format"))
+            c.setFillColorRGB(*_hex(cstyle.get("color") or "#111827"))
+            c.setFont(_font(cstyle), float(cstyle.get("fontSize") or 9))
+            c.drawString(cur_x + 3, y_top - row_h_pt + 3, str(value))
+            cur_x += col_widths[i]
+        y_top -= row_h_pt
+
+    # grand total / summary footer on the last page (space is reserved by the
+    # planner via _content_bottom_mm, so it always fits)
+    if draw_footer and el.get("showFooter"):
+        footer_h_pt = float(el.get("footerHeight") or el.get("rowHeight") or 7) * mm
+        c.setFillColorRGB(0.93, 0.93, 0.96)
+        c.rect(x, y_top - footer_h_pt, w, footer_h_pt, fill=1, stroke=0)
+        c.setStrokeColorRGB(0.27, 0.27, 0.27)
+        c.setLineWidth(0.6)
+        c.line(x, y_top, x + w, y_top)
+        c.setFillColorRGB(0.07, 0.09, 0.15)
+        c.setFont("Helvetica-Bold", 9)
+        cur_x = x
+        for i, col in enumerate(columns):
+            c.drawString(cur_x + 3, y_top - footer_h_pt + 3, _footer_cell(col, rows, ctx))
+            cur_x += col_widths[i]
+        y_top -= footer_h_pt
+
+    # outer border around the content drawn on this page (matches single-page _table)
+    c.setStrokeColorRGB(0.85, 0.85, 0.88)
+    c.setLineWidth(0.3)
+    c.rect(x, y_top, w, y_top_initial - y_top, fill=0, stroke=1)
     c.restoreState()
 
 

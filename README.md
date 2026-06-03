@@ -87,6 +87,10 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
    je Gruppe (nutzt die Spalten-`summary`)
  - **Parameter** – Report-Parameter (string/number/boolean/date) mit Wert,
    nutzbar in jedem Binding als `{{params.name}}`
+ - **Multi-Page** – überlaufende Detail-Tabellen brechen im PDF über mehrere
+   Seiten um; `pageHeader`/`pageFooter` wiederholen sich, `reportHeader` nur
+   auf Seite 1, `reportFooter` + Gesamtsumme auf der letzten Seite; `{{Page}}`/
+   `{{PageCount}}` zeigen echte Werte (Designer-Canvas zeigt Seite 1)
  - **Drag-and-drop** – Toolbox-Elemente *und* Datenfelder auf Bands/Elemente
  - **Snap-to-grid**, Arrow-Key-Nudging, Resize-Handles, Undo/Redo
  - **Data Explorer** – JSON paste-and-bind, Baumansicht, Drag von Feldern
