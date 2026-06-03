@@ -144,6 +144,18 @@ function elementFactory(type: ElementType, x: number, y: number): ReportElement 
         showColumnTotals: true,
         format: "{0:N2}",
       };
+    case "subreport": {
+      const nested = createEmptyReport("Sub-Report");
+      const body = nested.bands.find((b) => b.type === "body");
+      if (body) {
+        body.elements.push({
+          id: nanoid(8), type: "text",
+          bounds: { x: 2, y: 2, width: 100, height: 8 },
+          value: "Sub-Report", style: { fontSize: 10, color: "#6b7280" },
+        } as ReportElement);
+      }
+      return { ...base, type: "subreport", bounds: { x, y, width: 120, height: 40 }, dataSource: "", document: nested };
+    }
   }
 }
 

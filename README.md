@@ -94,6 +94,9 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
  - **Cross-Tab / Pivot** – Matrix aus `rowField` × `columnField` mit
    `aggregate` (sum/avg/count/min/max) von `valueField`, inkl. Zeilen-/
    Spaltensummen
+ - **Sub-Reports** – eingebetteter Report (`document`), gebunden an einen
+   Daten-Ausschnitt (`dataSource`, z. B. `{{order.customer}}`); rendert die
+   Content-Bands innerhalb der Element-Grenzen
  - **Drag-and-drop** – Toolbox-Elemente *und* Datenfelder auf Bands/Elemente
  - **Snap-to-grid**, Arrow-Key-Nudging, Resize-Handles, Undo/Redo
  - **Data Explorer** – JSON paste-and-bind, Baumansicht, Drag von Feldern

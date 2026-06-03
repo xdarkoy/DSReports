@@ -13,6 +13,7 @@ const DATA: { type: ElementType; label: string }[] = [
   { type: "table", label: "Table" },
   { type: "chart", label: "Chart" },
   { type: "crosstab", label: "Cross-Tab" },
+  { type: "subreport", label: "Sub-Report" },
   { type: "barcode", label: "Barcode" },
 ];
 

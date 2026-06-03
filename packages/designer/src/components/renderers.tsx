@@ -7,11 +7,12 @@ import type {
   PageBreakElement,
   RectangleElement,
   ReportElement,
+  SubReportElement,
   TableColumn,
   TableElement,
   TextElement,
 } from "@reporting/schema";
-import { applyFormat, evaluateArray, evaluateValue } from "../utils/expression";
+import { applyFormat, evaluateArray, evaluateValue, resolveBinding } from "../utils/expression";
 import { aggregate } from "../utils/reportFields";
 import { mergeConditional } from "../utils/conditional";
 import { shapeRows, groupRows } from "../utils/tableData";
@@ -27,8 +28,44 @@ export function renderElement(el: ReportElement, data: Record<string, unknown>, 
     case "table": return <TableR el={el} data={data} pxPerMm={pxPerMm} />;
     case "chart": return <ChartR el={el} data={data} />;
     case "crosstab": return <CrossTabR el={el} data={data} />;
+    case "subreport": return <SubReportR el={el} data={data} pxPerMm={pxPerMm} />;
     case "pagebreak": return <PageBreakR el={el} />;
   }
+}
+
+function SubReportR({ el, data, pxPerMm }: { el: SubReportElement; data: Record<string, unknown>; pxPerMm: number }) {
+  const sub = el.document;
+  const resolved = el.dataSource ? resolveBinding(el.dataSource, data) : undefined;
+  const subData: Record<string, unknown> =
+    resolved && typeof resolved === "object" && !Array.isArray(resolved)
+      ? { ...data, ...(resolved as Record<string, unknown>) }
+      : { ...data, sub: resolved };
+  const bands = (sub?.bands ?? []).filter(
+    (b) => b.type === "reportHeader" || b.type === "body" || b.type === "reportFooter",
+  );
+  let topMm = 0;
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", border: "1px dashed #cbd5e1", background: el.style?.backgroundColor }}>
+      {bands.flatMap((band) => {
+        const bandTop = topMm;
+        topMm += band.height;
+        return band.elements.map((nel) => (
+          <div
+            key={nel.id}
+            style={{
+              position: "absolute",
+              left: nel.bounds.x * pxPerMm,
+              top: (bandTop + nel.bounds.y) * pxPerMm,
+              width: nel.bounds.width * pxPerMm,
+              height: nel.bounds.height * pxPerMm,
+            }}
+          >
+            {renderElement(nel, subData, pxPerMm)}
+          </div>
+        ));
+      })}
+    </div>
+  );
 }
 
 function CrossTabR({ el, data }: { el: CrossTabElement; data: Record<string, unknown> }) {

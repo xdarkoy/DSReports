@@ -449,6 +449,15 @@ def evaluate_value(value: Any, ctx: Mapping[str, Any]) -> str:
     return value
 
 
+def resolve_binding(expr: Any, ctx: Mapping[str, Any]) -> Any:
+    """Resolve a binding/expression to its raw value (dict/list/scalar/None)."""
+    if not expr or not isinstance(expr, str):
+        return None
+    m = _BINDING.search(expr)
+    inner = m.group(1).strip() if m else expr.lstrip("=").strip()
+    return _get_path(ctx, inner) if _SIMPLE_PATH.match(inner) else _evaluate_expr(inner, ctx)
+
+
 def evaluate_array(expr: str, ctx: Mapping[str, Any]) -> list[Any]:
     if not expr:
         return []

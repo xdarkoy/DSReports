@@ -14,7 +14,7 @@ from reportlab.lib.pagesizes import A3, A4, A5, LETTER, LEGAL, landscape
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as pdf_canvas
 
-from .expression import apply_format, evaluate_array, evaluate_bool, evaluate_value, _to_str
+from .expression import apply_format, evaluate_array, evaluate_bool, evaluate_value, resolve_binding, _to_str
 from .image_policy import ImagePolicy, default_image_policy
 
 PAGE_SIZES = {
@@ -255,6 +255,8 @@ def _render_element(
         _table(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
     elif kind == "crosstab":
         _crosstab(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
+    elif kind == "subreport":
+        _subreport(c, el, x_pt, y_pt, w_pt, h_pt, page_h_pt, ctx, policy)
     elif kind == "chart":
         # Charts are out of scope for the baseline renderer; draw a placeholder.
         c.saveState()
@@ -483,6 +485,47 @@ def _table(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: floa
 
     c.setStrokeColorRGB(0.85, 0.85, 0.88)
     c.setLineWidth(0.3)
+    c.rect(x, y, w, h, fill=0, stroke=1)
+    c.restoreState()
+
+
+def _subreport(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: float,
+               page_h_pt: float, ctx: Mapping[str, Any], policy: ImagePolicy) -> None:
+    """Render a nested report's content bands (reportHeader/body/reportFooter)
+    stacked within the element box, clipped to its bounds."""
+    doc = el.get("document") or {}
+    resolved = resolve_binding(el.get("dataSource"), ctx) if el.get("dataSource") else None
+    sub_ctx = {**ctx, **resolved} if isinstance(resolved, Mapping) else {**ctx, "sub": resolved}
+
+    style = el.get("style") or {}
+    if style.get("backgroundColor"):
+        c.saveState()
+        c.setFillColorRGB(*_hex(style["backgroundColor"]))
+        c.rect(x, y, w, h, fill=1, stroke=0)
+        c.restoreState()
+
+    c.saveState()
+    clip = c.beginPath()
+    clip.rect(x, y, w, h)
+    c.clipPath(clip, stroke=0, fill=0)
+    box_top_mm = (page_h_pt - (y + h)) / mm
+    cumulative = 0.0
+    for band in doc.get("bands", []) or []:
+        if band.get("type") not in ("reportHeader", "body", "reportFooter"):
+            continue
+        band_top_mm = box_top_mm + cumulative
+        for nel in band.get("elements", []):
+            if nel.get("visible") is False or not evaluate_bool(nel.get("visibleIf"), sub_ctx):
+                continue
+            _render_element(c, nel, band_top_mm, page_h_pt, sub_ctx, policy)
+        cumulative += float(band.get("height", 0) or 0)
+    c.restoreState()
+
+    # dashed frame so the sub-report region is visible
+    c.saveState()
+    c.setStrokeColorRGB(0.8, 0.83, 0.88)
+    c.setLineWidth(0.3)
+    c.setDash(2, 2)
     c.rect(x, y, w, h, fill=0, stroke=1)
     c.restoreState()
 

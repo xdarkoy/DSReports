@@ -49,6 +49,7 @@ Conditional formatting: text elements and table columns accept "conditional": [{
 Grouping: a table may set "groupBy": "category" with "groupHeader": "Kategorie: {{group}}" and "showGroupFooter": true to render a header + subtotal row per group (subtotals use each column's "summary").
 Parameters: define report parameters in "parameters": [{ "id": "...", "name": "year", "type": "number", "defaultValue": 2024 }] and reference them anywhere as {{params.year}}.
 Cross-tab element: { "type": "crosstab", "dataSource": "{{sales}}", "rowField": "category", "columnField": "month", "valueField": "amount", "aggregate": "sum", "showRowTotals": true, "showColumnTotals": true, "format": "{0:N2}" } renders a pivot matrix (rowField × columnField, aggregated valueField).
+Sub-report element: { "type": "subreport", "dataSource": "{{order.customer}}", "document": <a nested ReportDocument> } embeds the nested report's content bands, bound to the resolved data slice (its fields are directly available in the nested bindings).
 
 Schema (condensed):
 {

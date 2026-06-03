@@ -4,6 +4,7 @@ import type {
   ChartKind,
   ConditionalFormat,
   CrossTabElement,
+  SubReportElement,
   ImageElement,
   LineElement,
   Parameter,
@@ -110,6 +111,7 @@ export function PropertyGrid() {
       {el.type === "table" && <TableProps el={el} patch={patch} />}
       {el.type === "chart" && <ChartProps el={el} patch={patch} />}
       {el.type === "crosstab" && <CrossTabProps el={el} patch={patch} />}
+      {el.type === "subreport" && <SubReportProps el={el} patch={patch} />}
     </div>
   );
 }
@@ -550,6 +552,24 @@ function CrossTabProps({ el, patch }: { el: CrossTabElement; patch: (u: (el: Rep
       <Field label="Col totals">
         <input type="checkbox" checked={el.showColumnTotals !== false} onChange={(e) => set("showColumnTotals", e.target.checked)} />
       </Field>
+    </Group>
+  );
+}
+
+function SubReportProps({ el, patch }: { el: SubReportElement; patch: (u: (el: ReportElement) => ReportElement) => void }) {
+  return (
+    <Group title="Sub-Report">
+      <Field label="Data slice">
+        <input
+          value={el.dataSource ?? ""}
+          placeholder="{{order.customer}}"
+          onChange={(e) => patch((p) => ({ ...(p as SubReportElement), dataSource: e.target.value || undefined }))}
+        />
+      </Field>
+      <div style={{ fontSize: 10, color: "var(--rd-muted)", marginTop: 4 }}>
+        Bound object's fields are available to the nested report. Edit the nested
+        layout via the AI Copilot or the JSON file (<code>document</code>).
+      </div>
     </Group>
   );
 }

@@ -67,6 +67,13 @@ export function evaluateCondition(expr: string | undefined, data: DataContext = 
   return truthy(evaluateExpr(src, data as EvalContext));
 }
 
+/** Resolve a binding/expression to its raw value (object/array/scalar/undefined). */
+export function resolveBinding(expr: string | undefined, data: DataContext): unknown {
+  if (!expr) return undefined;
+  const inner = expr.match(/\{\{\s*([^}]+?)\s*\}\}/)?.[1] ?? expr.replace(/^=/, "").trim();
+  return /^[\w.]+$/.test(inner) ? getPath(data, inner) : evaluateExpr(inner, data as EvalContext);
+}
+
 /** Resolve a bound array for tables / charts. */
 export function evaluateArray(expr: string, data: DataContext): unknown[] {
   if (!expr) return [];

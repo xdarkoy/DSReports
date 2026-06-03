@@ -251,6 +251,19 @@ export interface CrossTabElement extends BaseElement {
   style?: BoxStyle;
 }
 
+/**
+ * Embedded sub-report: renders a nested ReportDocument's content bands within
+ * this element's bounds, optionally bound to a slice of the parent data.
+ */
+export interface SubReportElement extends BaseElement {
+  type: "subreport";
+  /** the nested report definition */
+  document: ReportDocument;
+  /** optional data slice for the sub-report context, e.g. "{{order.customer}}" */
+  dataSource?: ValueExpr;
+  style?: BoxStyle;
+}
+
 export type ReportElement =
   | TextElement
   | ImageElement
@@ -260,6 +273,7 @@ export type ReportElement =
   | TableElement
   | ChartElement
   | CrossTabElement
+  | SubReportElement
   | PageBreakElement;
 
 export type ElementType = ReportElement["type"];
