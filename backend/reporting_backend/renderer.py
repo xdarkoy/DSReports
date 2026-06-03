@@ -5,15 +5,15 @@ canvas uses points (72pt = 1in) with origin bottom-left, so we translate.
 """
 from __future__ import annotations
 
-import base64
 import io
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
 
 from reportlab.lib.pagesizes import A3, A4, A5, LETTER, LEGAL, landscape
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as pdf_canvas
 
-from .expression import apply_format, evaluate_array, evaluate_value
+from .expression import apply_format, evaluate_array, evaluate_bool, evaluate_value
+from .image_policy import ImagePolicy, default_image_policy
 
 PAGE_SIZES = {
     "A3": A3,
@@ -23,39 +23,49 @@ PAGE_SIZES = {
     "Legal": LEGAL,
 }
 
+# Bands rendered top-down from the page top, in order.
+_FLOW_BANDS = ("pageHeader", "reportHeader", "body")
+# Bands anchored to the page bottom, stacked upward (pageFooter sits lowest).
+_BOTTOM_BANDS = ("pageFooter", "reportFooter")
 
-def render_report_to_pdf(doc: Mapping[str, Any], data: Mapping[str, Any] | None = None) -> bytes:
-    page = doc.get("page", {})
+
+def render_report_to_pdf(
+    doc: Mapping[str, Any],
+    data: Mapping[str, Any] | None = None,
+    image_policy: Optional[ImagePolicy] = None,
+) -> bytes:
+    if not isinstance(doc, Mapping):
+        raise ValueError("document must be a JSON object")
+
+    policy = image_policy or default_image_policy()
+    page = doc.get("page", {}) or {}
     size = PAGE_SIZES.get(page.get("size", "A4"), A4)
     if page.get("orientation") == "landscape":
         size = landscape(size)
 
     buf = io.BytesIO()
     c = pdf_canvas.Canvas(buf, pagesize=size)
-    page_w_pt, page_h_pt = size
+    _page_w_pt, page_h_pt = size
+    page_h_mm = page_h_pt / mm
 
-    bands = doc.get("bands", [])
-    header_h = _h(bands, "pageHeader")
-    footer_h = _h(bands, "pageFooter")
+    bands = doc.get("bands", []) or []
+    ctx: Mapping[str, Any] = data if data is not None else _extract_data(doc)
 
-    y_cursor_mm = 0
-    ctx: Mapping[str, Any] = data or _extract_data(doc)
+    # Flow bands: stack downward from the top of the page.
+    y_cursor_mm = 0.0
+    for kind in _FLOW_BANDS:
+        band = _band(bands, kind)
+        if band:
+            _render_band(c, band, y_cursor_mm, page_h_pt, ctx, policy)
+            y_cursor_mm += float(band.get("height", 0) or 0)
 
-    # Page header
-    header = _band(bands, "pageHeader")
-    if header:
-        _render_band(c, header, 0, page_h_pt, ctx)
-        y_cursor_mm += header.get("height", 0)
-
-    # Body (single page for now; paging across bodies is a future extension)
-    body = _band(bands, "body")
-    if body:
-        _render_band(c, body, y_cursor_mm, page_h_pt, ctx)
-
-    # Footer
-    footer = _band(bands, "pageFooter")
-    if footer:
-        _render_band(c, footer, (page_h_pt / mm) - footer.get("height", 0), page_h_pt, ctx)
+    # Bottom bands: stack upward from the bottom of the page.
+    y_bottom_mm = page_h_mm
+    for kind in _BOTTOM_BANDS:
+        band = _band(bands, kind)
+        if band:
+            y_bottom_mm -= float(band.get("height", 0) or 0)
+            _render_band(c, band, y_bottom_mm, page_h_pt, ctx, policy)
 
     c.showPage()
     c.save()
@@ -69,19 +79,22 @@ def _band(bands: list[dict], kind: str) -> dict | None:
     return next((b for b in bands if b.get("type") == kind), None)
 
 
-def _h(bands: list[dict], kind: str) -> float:
-    b = _band(bands, kind)
-    return float(b["height"]) if b else 0
-
-
-def _render_band(c: pdf_canvas.Canvas, band: dict, band_top_mm: float, page_h_pt: float, ctx: Mapping[str, Any]) -> None:
+def _render_band(
+    c: pdf_canvas.Canvas, band: dict, band_top_mm: float, page_h_pt: float,
+    ctx: Mapping[str, Any], policy: ImagePolicy,
+) -> None:
     for el in band.get("elements", []):
         if el.get("visible") is False:
             continue
-        _render_element(c, el, band_top_mm, page_h_pt, ctx)
+        if not evaluate_bool(el.get("visibleIf"), ctx):
+            continue
+        _render_element(c, el, band_top_mm, page_h_pt, ctx, policy)
 
 
-def _render_element(c: pdf_canvas.Canvas, el: dict, band_top_mm: float, page_h_pt: float, ctx: Mapping[str, Any]) -> None:
+def _render_element(
+    c: pdf_canvas.Canvas, el: dict, band_top_mm: float, page_h_pt: float,
+    ctx: Mapping[str, Any], policy: ImagePolicy,
+) -> None:
     b = el["bounds"]
     x_pt = b["x"] * mm
     w_pt = b["width"] * mm
@@ -93,7 +106,7 @@ def _render_element(c: pdf_canvas.Canvas, el: dict, band_top_mm: float, page_h_p
     if kind == "text":
         _text(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
     elif kind == "image":
-        _image(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
+        _image(c, el, x_pt, y_pt, w_pt, h_pt, ctx, policy)
     elif kind == "rectangle":
         _rect(c, el, x_pt, y_pt, w_pt, h_pt)
     elif kind == "line":
@@ -142,24 +155,24 @@ def _text(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: float
     c.restoreState()
 
 
-def _image(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: float, ctx: Mapping[str, Any]) -> None:
+def _image(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: float, ctx: Mapping[str, Any], policy: ImagePolicy) -> None:
     src = evaluate_value(el.get("source") or "", ctx)
     if not src:
         return
-    try:
-        if src.startswith("data:"):
-            header, b64 = src.split(",", 1)
-            raw = base64.b64decode(b64)
+    raw = policy.load(src)  # None for disallowed/local/unfetchable sources
+    if raw is not None:
+        try:
             from reportlab.lib.utils import ImageReader
             img = ImageReader(io.BytesIO(raw))
             c.drawImage(img, x, y, width=w, height=h, preserveAspectRatio=(el.get("fit") == "contain"), mask="auto")
-        else:
-            c.drawImage(src, x, y, width=w, height=h, preserveAspectRatio=(el.get("fit") == "contain"), mask="auto")
-    except Exception:
-        c.saveState()
-        c.setFillColorRGB(0.9, 0.9, 0.9)
-        c.rect(x, y, w, h, fill=1, stroke=0)
-        c.restoreState()
+            return
+        except Exception:
+            pass
+    # Placeholder for missing / disallowed images.
+    c.saveState()
+    c.setFillColorRGB(0.9, 0.9, 0.9)
+    c.rect(x, y, w, h, fill=1, stroke=0)
+    c.restoreState()
 
 
 def _rect(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: float) -> None:
@@ -288,11 +301,28 @@ def _font(style: Mapping[str, Any]) -> str:
     return "Helvetica"
 
 
-def _hex(h: str) -> tuple[float, float, float]:
-    h = h.lstrip("#")
-    if len(h) == 3:
-        h = "".join(ch * 2 for ch in h)
-    r = int(h[0:2], 16) / 255
-    g = int(h[2:4], 16) / 255
-    b = int(h[4:6], 16) / 255
-    return (r, g, b)
+# A few common CSS color names so AI-generated styles don't crash the render.
+_NAMED_COLORS: dict[str, tuple[float, float, float]] = {
+    "black": (0, 0, 0), "white": (1, 1, 1), "red": (1, 0, 0), "green": (0, 0.5, 0),
+    "blue": (0, 0, 1), "gray": (0.5, 0.5, 0.5), "grey": (0.5, 0.5, 0.5),
+    "yellow": (1, 1, 0), "orange": (1, 0.65, 0), "transparent": (1, 1, 1),
+}
+
+
+def _hex(h: Any, fallback: tuple[float, float, float] = (0, 0, 0)) -> tuple[float, float, float]:
+    """Parse a #hex / #rgb / named color. Returns ``fallback`` on anything
+    unparseable so a bad color never aborts the whole render."""
+    if not isinstance(h, str):
+        return fallback
+    name = h.strip().lower()
+    if name in _NAMED_COLORS:
+        return _NAMED_COLORS[name]
+    s = name.lstrip("#")
+    if len(s) == 3:
+        s = "".join(ch * 2 for ch in s)
+    if len(s) != 6:
+        return fallback
+    try:
+        return (int(s[0:2], 16) / 255, int(s[2:4], 16) / 255, int(s[4:6], 16) / 255)
+    except ValueError:
+        return fallback

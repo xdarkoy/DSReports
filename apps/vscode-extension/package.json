@@ -23,16 +23,12 @@
     ],
     "commands": [
       { "command": "reporting.newReport", "title": "Report Designer: New Report" },
-      { "command": "reporting.preview",   "title": "Report Designer: Render Preview (PDF)" }
+      { "command": "reporting.preview",   "title": "Report Designer: Render Preview (PDF)" },
+      { "command": "reporting.setApiKey", "title": "Report Designer: Set Anthropic API Key" }
     ],
     "configuration": {
       "title": "Report Designer",
       "properties": {
-        "reporting.anthropicApiKey": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "Anthropic API key used by the AI copilot. Stored in your settings; for production, prefer environment variables."
-        },
         "reporting.aiModel": {
           "type": "string",
           "default": "claude-sonnet-4-6",

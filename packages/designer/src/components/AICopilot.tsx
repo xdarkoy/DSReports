@@ -38,7 +38,7 @@ export function AICopilot({ ai }: Props) {
     try {
       let result: ReportDocument;
       if (!ai) {
-        result = heuristicGenerate(prompt, doc, intent);
+        result = heuristicGenerate(prompt, doc, intent, sampleData);
       } else if (intent === "layout") {
         result = await ai.generateReport(prompt, { document: doc, sampleData });
       } else if (intent === "restyle") {
@@ -94,7 +94,15 @@ export function AICopilot({ ai }: Props) {
 import { nanoid } from "nanoid";
 import { createEmptyReport, type ReportElement } from "@reporting/schema";
 
-function heuristicGenerate(prompt: string, current: ReportDocument, intent: "layout" | "restyle" | "map"): ReportDocument {
+function heuristicGenerate(
+  prompt: string,
+  current: ReportDocument,
+  intent: "layout" | "restyle" | "map",
+  sampleData?: unknown,
+): ReportDocument {
+  if (intent === "map") {
+    return heuristicMap(sampleData);
+  }
   if (intent === "restyle") {
     const wantsDark = /dark|dunkel|schwarz/i.test(prompt);
     const wantsBlue = /blau|blue/i.test(prompt);
@@ -156,6 +164,75 @@ function heuristicGenerate(prompt: string, current: ReportDocument, intent: "lay
       style: { fontSize: 9, color: "#6b7280", horizontalAlign: "center" },
     }),
   );
+
+  return doc;
+}
+
+// Build a simple key/value + table layout directly from a sample object,
+// so "Auto-map" does something useful even without an AI provider.
+function heuristicMap(sample: unknown): ReportDocument {
+  const doc = createEmptyReport("Data Report");
+  const body = doc.bands.find((b) => b.type === "body")!;
+  if (!sample || typeof sample !== "object") {
+    body.elements.push(mk("text", { x: 10, y: 6, width: 190, height: 8 }, { value: "No sample data to map." }));
+    return doc;
+  }
+  // Unwrap a single root object (e.g. { invoice: {...} }) for nicer paths.
+  const entries = Object.entries(sample as Record<string, unknown>);
+  const [rootKey, rootVal] =
+    entries.length === 1 && entries[0][1] && typeof entries[0][1] === "object"
+      ? entries[0]
+      : ["", sample];
+  const prefix = rootKey ? `${rootKey}.` : "";
+  const obj = rootVal as Record<string, unknown>;
+
+  let y = 6;
+  body.elements.push(
+    mk("text", { x: 10, y, width: 190, height: 10 }, {
+      value: rootKey || "Report",
+      style: { fontSize: 18, fontWeight: 700, color: "#111827" },
+    }),
+  );
+  y += 14;
+
+  const arrays: [string, unknown[]][] = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (Array.isArray(v)) { arrays.push([k, v]); continue; }
+    if (v !== null && typeof v === "object") continue; // skip nested objects in the flat list
+    body.elements.push(
+      mk("text", { x: 10, y, width: 50, height: 6 }, { value: `${k}:`, style: { fontSize: 10, fontWeight: 600 } }),
+      mk("text", { x: 62, y, width: 130, height: 6 }, { value: `{{${prefix}${k}}}`, style: { fontSize: 10 } }),
+    );
+    y += 7;
+  }
+
+  for (const [k, arr] of arrays) {
+    const first = arr[0];
+    const cols =
+      first && typeof first === "object"
+        ? Object.keys(first as Record<string, unknown>).filter((f) => {
+            const fv = (first as Record<string, unknown>)[f];
+            return fv === null || typeof fv !== "object";
+          })
+        : ["value"];
+    y += 4;
+    body.elements.push(
+      mk("table", { x: 10, y, width: 190, height: 60 }, {
+        dataSource: `{{${prefix}${k}}}`,
+        showHeader: true,
+        headerHeight: 8,
+        rowHeight: 7,
+        alternateRowColor: "#f9fafb",
+        columns: cols.map((f) => ({
+          id: nanoid(6),
+          header: f,
+          cell: `{{row.${f}}}`,
+          width: Math.floor(180 / cols.length),
+        })),
+      }),
+    );
+    y += 64;
+  }
 
   return doc;
 }

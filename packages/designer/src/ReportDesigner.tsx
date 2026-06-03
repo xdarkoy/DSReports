@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { useDesignerStore } from "./store/designerStore";
 import type { ReportDesignerProps } from "./types";
@@ -27,23 +27,46 @@ export function ReportDesigner(props: ReportDesignerProps) {
   const setSampleData = useDesignerStore((s) => s.setSampleData);
   const doc = useDesignerStore((s) => s.doc);
 
+  // Hold the latest callbacks in refs so the "push changes" effect depends
+  // only on `doc` — otherwise inline `host`/`onDocumentChange` objects (new
+  // identity every parent render) would fire the effect on every render.
+  const onChangeRef = useRef(onDocumentChange);
+  const hostRef = useRef(host);
+  onChangeRef.current = onDocumentChange;
+  hostRef.current = host;
+
+  // Tracks the last document we emitted (or loaded) so we can tell our own
+  // echo apart from a genuine external update — prevents the
+  // change→onChange→prop→replaceDocument→change feedback loop and stops the
+  // controlled sync from wiping undo history on every keystroke.
+  const lastSynced = useRef<string>("");
+
   // init
   useEffect(() => {
-    replaceDocument(document ?? initialDocument ?? createEmptyReport());
+    const initial = document ?? initialDocument ?? createEmptyReport();
+    lastSynced.current = JSON.stringify(initial);
+    replaceDocument(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // controlled mode: sync when parent updates `document`
+  // controlled mode: sync only on a genuine external `document` change
   useEffect(() => {
-    if (document) replaceDocument(document);
+    if (!document) return;
+    const s = JSON.stringify(document);
+    if (s === lastSynced.current) return; // our own echo — ignore
+    lastSynced.current = s;
+    replaceDocument(document);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document]);
 
-  // push changes back to parent
+  // push changes back to parent (only when the document actually changes)
   useEffect(() => {
-    onDocumentChange?.(doc);
-    host?.onChange?.(doc);
-  }, [doc, onDocumentChange, host]);
+    const s = JSON.stringify(doc);
+    if (s === lastSynced.current) return;
+    lastSynced.current = s;
+    onChangeRef.current?.(doc);
+    hostRef.current?.onChange?.(doc);
+  }, [doc]);
 
   useEffect(() => {
     if (sampleData !== undefined) setSampleData(sampleData);

@@ -30,6 +30,7 @@ interface DesignerState {
   sampleData: unknown;
   history: HistoryEntry[];
   future: HistoryEntry[];
+  lastEditAt: number;
 
   // ---- setters
   setDocument: (doc: ReportDocument, record?: boolean) => void;
@@ -133,6 +134,9 @@ function elementFactory(type: ElementType, x: number, y: number): ReportElement 
 }
 
 const MAX_HISTORY = 100;
+// Rapid successive edits (a drag's many mousemoves, typing in a field) are
+// merged into a single undo step when they land within this window.
+const COALESCE_MS = 400;
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
   doc: createEmptyReport(),
@@ -144,19 +148,30 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   sampleData: undefined,
   history: [],
   future: [],
+  lastEditAt: 0,
 
   setDocument: (doc, record = true) => {
     const prev = get();
-    if (record) {
-      const hist = [...prev.history, { doc: prev.doc, selection: prev.selection }];
-      if (hist.length > MAX_HISTORY) hist.shift();
-      set({ doc: stamp(doc), history: hist, future: [] });
-    } else {
+    if (!record) {
       set({ doc: stamp(doc) });
+      return;
     }
+    const now = Date.now();
+    // Coalesce with the previous edit if it was very recent: replace the
+    // current doc without pushing another history entry, so one drag / one
+    // burst of typing is a single undo step.
+    const coalesce = prev.history.length > 0 && now - prev.lastEditAt < COALESCE_MS;
+    if (coalesce) {
+      set({ doc: stamp(doc), future: [], lastEditAt: now });
+      return;
+    }
+    const hist = [...prev.history, { doc: prev.doc, selection: prev.selection }];
+    if (hist.length > MAX_HISTORY) hist.shift();
+    set({ doc: stamp(doc), history: hist, future: [], lastEditAt: now });
   },
 
-  replaceDocument: (doc) => set({ doc: stamp(doc), selection: { kind: "none" }, history: [], future: [] }),
+  replaceDocument: (doc) =>
+    set({ doc: stamp(doc), selection: { kind: "none" }, history: [], future: [], lastEditAt: 0 }),
 
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
   setSnap: (snap) => set({ snapToGrid: snap }),
@@ -260,6 +275,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       selection: prev.selection,
       history: history.slice(0, -1),
       future: [...future, { doc, selection }],
+      lastEditAt: 0,
     });
   },
 
@@ -272,6 +288,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       selection: next.selection,
       future: future.slice(0, -1),
       history: [...history, { doc, selection }],
+      lastEditAt: 0,
     });
   },
 

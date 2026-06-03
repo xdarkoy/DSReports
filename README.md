@@ -117,7 +117,9 @@ code --install-extension apps/vscode-extension/*.vsix
 In VS Code:
 
  1. `Ctrl+Shift+P` → **Report Designer: New Report**
- 2. Anthropic-API-Key in den Settings hinterlegen: `reporting.anthropicApiKey`
+ 2. `Ctrl+Shift+P` → **Report Designer: Set Anthropic API Key** – der Schlüssel
+    wird in der VS Code **SecretStorage** abgelegt (nicht in `settings.json`)
+    und verlässt den Extension-Host nie.
  3. Datei `*.myreport.json` doppelklicken → der Designer öffnet sich inline.
 
 ### 3. Visual Studio 2022 Extension
@@ -154,12 +156,18 @@ auf **Preview** auf und öffnen das zurückgegebene PDF.
 npm i @reporting/designer @reporting/schema
 ```
 
+> ⚠️ **API-Key niemals im Browser-Bundle.** `createClaudeAI({ apiKey })` ruft
+> die Anthropic-API direkt auf und gehört nur in eine Server-/Node-Umgebung.
+> Im Browser den **Relay** verwenden (`createRelayAI`): Der Key bleibt auf dem
+> Server, das Frontend spricht nur deinen eigenen Endpoint an.
+
 ```tsx
 import { ReportDesigner } from "@reporting/designer";
 import "@reporting/designer/styles.css";
-import { createClaudeAI } from "@reporting/ai";
+import { createRelayAI } from "@reporting/ai";
 
-const ai = createClaudeAI({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Key bleibt serverseitig; "/api/ai" proxyt zu Anthropic.
+const ai = createRelayAI("/api/ai");
 
 export default function App() {
   return (
