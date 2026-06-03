@@ -3,6 +3,7 @@ import clsx from "clsx";
 import type { BandType, ReportElement } from "@reporting/schema";
 import { useDesignerStore } from "../store/designerStore";
 import { renderElement } from "./renderers";
+import { evaluateCondition } from "../utils/expression";
 
 interface Props {
   element: ReportElement;
@@ -103,19 +104,26 @@ export function ElementView({ element, bandType, pxPerMm, data }: Props) {
     window.removeEventListener("mouseup", onMouseUp);
   };
 
+  // At design time hidden elements are dimmed (not removed) so they stay
+  // selectable; the PDF renderer omits them entirely. Mirrors the backend's
+  // visible / visibleIf handling.
+  const hidden = element.visible === false || !evaluateCondition(element.visibleIf, data);
+
   const style: React.CSSProperties = {
     left: element.bounds.x * pxPerMm,
     top: element.bounds.y * pxPerMm,
     width: element.bounds.width * pxPerMm,
     height: element.bounds.height * pxPerMm,
     zIndex: element.zIndex ?? 1,
+    opacity: hidden ? 0.35 : undefined,
   };
 
   return (
     <div
-      className={clsx("rd-element", isSelected && "rd-selected", element.locked && "rd-locked")}
+      className={clsx("rd-element", isSelected && "rd-selected", element.locked && "rd-locked", hidden && "rd-hidden")}
       style={style}
       onMouseDown={onMouseDownMove}
+      title={hidden ? "Hidden (visible=false / visibleIf)" : undefined}
     >
       {renderElement(element, data, pxPerMm)}
       {isSelected && !element.locked && (

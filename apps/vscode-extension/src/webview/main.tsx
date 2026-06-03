@@ -46,8 +46,12 @@ function makeAI() {
   return {
     generateReport: (prompt: string, ctx?: any) =>
       ask<ReportDocument>("generate", { prompt, sampleData: ctx?.sampleData }),
-    suggestElements: (prompt: string, ctx?: any) =>
-      ask<any>("generate", { prompt, sampleData: ctx?.sampleData }),
+    suggestElements: async (prompt: string, ctx?: any) => {
+      // No dedicated "suggest" action on the host; derive elements from a
+      // generated document's body band.
+      const d = await ask<ReportDocument>("generate", { prompt, sampleData: ctx?.sampleData });
+      return d?.bands?.find((b) => b.type === "body")?.elements ?? [];
+    },
     restyle: (prompt: string, doc: ReportDocument) =>
       ask<ReportDocument>("restyle", { prompt, doc }),
     mapData: (sample: unknown) => ask<any>("map", { sample }),

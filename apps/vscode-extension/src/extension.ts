@@ -1,9 +1,52 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as crypto from "crypto";
 import { TextEncoder, TextDecoder } from "util";
+import { validateReport } from "@reporting/schema";
+
+const API_KEY_SECRET = "reporting.anthropicApiKey";
+
+/**
+ * Resolve the Anthropic API key from SecretStorage, transparently migrating a
+ * legacy plaintext `reporting.anthropicApiKey` setting into secret storage and
+ * clearing it from settings.json.
+ */
+async function getApiKey(context: vscode.ExtensionContext): Promise<string | undefined> {
+  const stored = await context.secrets.get(API_KEY_SECRET);
+  if (stored) return stored;
+  const legacy = vscode.workspace.getConfiguration("reporting").get<string>("anthropicApiKey");
+  if (legacy) {
+    await context.secrets.store(API_KEY_SECRET, legacy);
+    await vscode.workspace
+      .getConfiguration("reporting")
+      .update("anthropicApiKey", undefined, vscode.ConfigurationTarget.Global)
+      .then(undefined, () => {/* setting may be read-only; key is already migrated */});
+    return legacy;
+  }
+  return undefined;
+}
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(ReportDesignerEditor.register(context));
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("reporting.setApiKey", async () => {
+      const value = await vscode.window.showInputBox({
+        title: "Anthropic API Key",
+        prompt: "Stored securely in VS Code SecretStorage (not in settings.json).",
+        password: true,
+        ignoreFocusOut: true,
+      });
+      if (value === undefined) return;
+      if (value === "") {
+        await context.secrets.delete(API_KEY_SECRET);
+        vscode.window.showInformationMessage("Anthropic API key cleared.");
+      } else {
+        await context.secrets.store(API_KEY_SECRET, value.trim());
+        vscode.window.showInformationMessage("Anthropic API key saved.");
+      }
+    }),
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("reporting.newReport", async () => {
@@ -91,9 +134,12 @@ class ReportDesignerEditor implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       switch (msg.type) {
         case "ready": {
-          const apiKey = vscode.workspace.getConfiguration("reporting").get<string>("anthropicApiKey");
           const aiModel = vscode.workspace.getConfiguration("reporting").get<string>("aiModel");
-          post("config", { apiKey, aiModel });
+          // The key never leaves the extension host: AI calls round-trip
+          // through the "ai" message, so the webview only needs to know
+          // whether a key is configured.
+          const hasApiKey = !!(await getApiKey(this.context));
+          post("config", { hasApiKey, aiModel });
           sendDoc();
           return;
         }
@@ -123,7 +169,7 @@ class ReportDesignerEditor implements vscode.CustomTextEditorProvider {
           return;
         case "ai": {
           try {
-            const result = await callClaude(msg.payload);
+            const result = await callClaude(msg.payload, this.context);
             post("ai-result", { id: msg.id, result });
           } catch (e) {
             post("ai-result", { id: msg.id, error: (e as Error).message });
@@ -139,13 +185,17 @@ class ReportDesignerEditor implements vscode.CustomTextEditorProvider {
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, "designer.js"));
     const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, "designer.css"));
     const nonce = genNonce();
+    // The webview makes no direct network requests: AI and preview both
+    // round-trip through the extension host via postMessage. So connect-src
+    // is locked to 'none'. img-src still allows https/data so report image
+    // elements preview (images are inert and cannot exfiltrate data).
     const csp = [
       `default-src 'none'`,
       `img-src ${webview.cspSource} https: data:`,
       `style-src ${webview.cspSource} 'unsafe-inline'`,
       `script-src 'nonce-${nonce}'`,
       `font-src ${webview.cspSource} data:`,
-      `connect-src https://api.anthropic.com https:`,
+      `connect-src 'none'`,
     ].join("; ");
 
     return `<!doctype html>
@@ -165,13 +215,12 @@ class ReportDesignerEditor implements vscode.CustomTextEditorProvider {
 }
 
 function genNonce(): string {
-  let s = "";
-  const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) s += alpha.charAt(Math.floor(Math.random() * alpha.length));
-  return s;
+  return crypto.randomBytes(24).toString("base64");
 }
 
 async function renderPreview(doc: unknown, context: vscode.ExtensionContext) {
+  const check = validateReport(doc);
+  if (!check.ok) { vscode.window.showErrorMessage(`Cannot preview: ${check.error}`); return; }
   const url = vscode.workspace.getConfiguration("reporting").get<string>("pythonBackendUrl");
   if (!url) { vscode.window.showErrorMessage("Set reporting.pythonBackendUrl in settings."); return; }
   try {
@@ -191,9 +240,9 @@ async function renderPreview(doc: unknown, context: vscode.ExtensionContext) {
   }
 }
 
-async function callClaude({ action, payload }: { action: string; payload: any }) {
-  const apiKey = vscode.workspace.getConfiguration("reporting").get<string>("anthropicApiKey");
-  if (!apiKey) throw new Error("Configure reporting.anthropicApiKey in settings.");
+async function callClaude({ action, payload }: { action: string; payload: any }, context: vscode.ExtensionContext) {
+  const apiKey = await getApiKey(context);
+  if (!apiKey) throw new Error("No Anthropic API key set. Run “Report Designer: Set Anthropic API Key”.");
   const model = vscode.workspace.getConfiguration("reporting").get<string>("aiModel") ?? "claude-sonnet-4-6";
 
   const { system, user } = buildPrompt(action, payload);

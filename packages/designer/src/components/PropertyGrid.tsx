@@ -352,7 +352,7 @@ function ChartProps({ el, patch }: { el: ChartElement; patch: (u: (el: ReportEle
   );
 }
 
-function BoxStyleGroup({ style, set }: { style: any; set: (k: string, v: any) => void }) {
+function BoxStyleGroup({ style, set }: { style: any; set: (k: any, v: any) => void }) {
   return (
     <Group title="Box">
       <Field label="Background">
