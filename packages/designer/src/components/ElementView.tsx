@@ -4,6 +4,7 @@ import type { BandType, ReportElement } from "@reporting/schema";
 import { useDesignerStore } from "../store/designerStore";
 import { renderElement } from "./renderers";
 import { evaluateCondition } from "../utils/expression";
+import { bindElement } from "../utils/binding";
 
 interface Props {
   element: ReportElement;
@@ -109,6 +110,22 @@ export function ElementView({ element, bandType, pxPerMm, data }: Props) {
   // visible / visibleIf handling.
   const hidden = element.visible === false || !evaluateCondition(element.visibleIf, data);
 
+  // Accept a data field dragged from the Data Explorer: bind it to this
+  // element's primary property (text→value, image→source, table→dataSource…).
+  const acceptsBinding = (e: React.DragEvent) =>
+    e.dataTransfer.types.includes("application/x-rd-binding");
+  const onDragOverBinding = (e: React.DragEvent) => {
+    if (acceptsBinding(e)) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "copy"; }
+  };
+  const onDropBinding = (e: React.DragEvent) => {
+    const binding = e.dataTransfer.getData("application/x-rd-binding");
+    if (!binding) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectElement(bandType, element.id);
+    updateElement(bandType, element.id, (el) => bindElement(el, binding, data));
+  };
+
   const style: React.CSSProperties = {
     left: element.bounds.x * pxPerMm,
     top: element.bounds.y * pxPerMm,
@@ -123,6 +140,8 @@ export function ElementView({ element, bandType, pxPerMm, data }: Props) {
       className={clsx("rd-element", isSelected && "rd-selected", element.locked && "rd-locked", hidden && "rd-hidden")}
       style={style}
       onMouseDown={onMouseDownMove}
+      onDragOver={onDragOverBinding}
+      onDrop={onDropBinding}
       title={hidden ? "Hidden (visible=false / visibleIf)" : undefined}
     >
       {renderElement(element, data, pxPerMm)}

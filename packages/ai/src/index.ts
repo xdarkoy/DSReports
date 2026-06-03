@@ -42,6 +42,10 @@ Coordinate system is millimetres, origin top-left of the page.
 Use A4 portrait (210 x 297) unless the user says otherwise.
 Bands are one of: pageHeader, reportHeader, body, reportFooter, pageFooter.
 Values can be literals, interpolations "{{path.to.field}}" or expressions "= row.qty * row.price".
+Special fields (Crystal-Reports-style) are available in any binding: {{Page}}, {{PageCount}}, {{PageNofM}}, {{PrintDate}}, {{PrintTime}}, {{ReportTitle}}, and {{RowNumber}} inside table rows.
+Tables support a summary row: set the table's "showFooter": true and give numeric columns a "summary" of "sum"|"avg"|"count"|"min"|"max" (or a literal "footer" string like "Gesamt:").
+Tables can also "filter" rows ("= row.qty > 0") and "sort" them ([{"field":"price","dir":"desc"}]); a column may set "runningTotal": true for a cumulative total.
+Conditional formatting: text elements and table columns accept "conditional": [{ "when": "= row.total < 0", "style": { "color": "#ff0000", "fontWeight": "bold", "backgroundColor": "#fee" } }].
 
 Schema (condensed):
 {

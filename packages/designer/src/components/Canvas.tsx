@@ -10,6 +10,9 @@ import {
 } from "@reporting/schema";
 import { useDesignerStore } from "../store/designerStore";
 import { ElementView } from "./ElementView";
+import { evaluateArray } from "../utils/expression";
+import { columnsFromData } from "../utils/binding";
+import { systemFields } from "../utils/reportFields";
 
 const BAND_LABELS: Record<BandType, string> = {
   pageHeader: "Page Header",
@@ -37,20 +40,44 @@ export function Canvas() {
   const [dragOverBand, setDragOverBand] = useState<BandType | null>(null);
 
   const dataCtx = useMemo<Record<string, unknown>>(() => {
-    if (sampleData && typeof sampleData === "object") return sampleData as Record<string, unknown>;
-    return {};
-  }, [sampleData]);
+    const base = sampleData && typeof sampleData === "object" ? (sampleData as Record<string, unknown>) : {};
+    // Inject Crystal-style special fields ({{Page}}, {{PrintDate}}, …).
+    return { ...base, ...systemFields({ title: doc.meta.title }) };
+  }, [sampleData, doc.meta.title]);
 
   const handleDrop = (e: React.DragEvent, band: Band) => {
     e.preventDefault();
     setDragOverBand(null);
-    const type = e.dataTransfer.getData("application/x-rd-element") as ElementType | "";
-    if (!type) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const xMm = (e.clientX - rect.left) / pxPerMm;
     const yMm = (e.clientY - rect.top) / pxPerMm;
     const [x, y] = maybeSnap(xMm, yMm, snap, gridSize);
-    addElementAt(band.type, type, Math.max(0, x), Math.max(0, y));
+    const px = Math.max(0, x);
+    const py = Math.max(0, y);
+
+    const type = e.dataTransfer.getData("application/x-rd-element") as ElementType | "";
+    if (type) {
+      addElementAt(band.type, type, px, py);
+      return;
+    }
+
+    // A data field dragged from the Data Explorer onto empty band space:
+    // create a table if it resolves to an array of objects, else a text field.
+    const binding = e.dataTransfer.getData("application/x-rd-binding");
+    if (binding) {
+      const cols = columnsFromData(binding, dataCtx);
+      if (cols.length) {
+        const el = addElementAt(band.type, "table", px, py);
+        updateElement(band.type, el.id, (prev) =>
+          prev.type === "table" ? { ...prev, dataSource: binding, columns: cols } : prev,
+        );
+      } else {
+        const el = addElementAt(band.type, "text", px, py);
+        updateElement(band.type, el.id, (prev) =>
+          prev.type === "text" ? { ...prev, value: binding } : prev,
+        );
+      }
+    }
   };
 
   // Keyboard shortcuts on selected element

@@ -6,6 +6,7 @@ canvas uses points (72pt = 1in) with origin bottom-left, so we translate.
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from typing import Any, Mapping, Optional
 
 from reportlab.lib.pagesizes import A3, A4, A5, LETTER, LEGAL, landscape
@@ -49,7 +50,12 @@ def render_report_to_pdf(
     page_h_mm = page_h_pt / mm
 
     bands = doc.get("bands", []) or []
-    ctx: Mapping[str, Any] = data if data is not None else _extract_data(doc)
+    base = data if data is not None else _extract_data(doc)
+    # Merge Crystal-style special fields on top of the data context.
+    ctx: Mapping[str, Any] = {
+        **(base if isinstance(base, Mapping) else {}),
+        **_system_fields(doc),
+    }
 
     # Flow bands: stack downward from the top of the page.
     y_cursor_mm = 0.0
@@ -126,7 +132,7 @@ def _render_element(
 
 
 def _text(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: float, ctx: Mapping[str, Any]) -> None:
-    style = el.get("style") or {}
+    style = _merge_conditional(el.get("style") or {}, el.get("conditional"), ctx)
     value = apply_format(evaluate_value(el.get("value", ""), ctx), el.get("format"))
     font_name = _font(style)
     font_size = float(style.get("fontSize") or 10)
@@ -233,7 +239,7 @@ def _table(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: floa
     columns = el.get("columns", [])
     if not columns:
         return
-    rows = evaluate_array(el.get("dataSource", ""), ctx)
+    rows = _shape_rows(evaluate_array(el.get("dataSource", ""), ctx), el, ctx)
     col_total = sum(col.get("width", 10) for col in columns) or 1
     header_h_pt = (el.get("headerHeight") or 8) * mm
     row_h_pt = (el.get("rowHeight") or 7) * mm
@@ -256,28 +262,137 @@ def _table(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: floa
         y_top -= header_h_pt
 
     # rows
-    c.setFont("Helvetica", 9)
+    running: dict = {}
     for idx, row in enumerate(rows):
         if y_top - row_h_pt < y:
             break  # no pagination in baseline
         if idx % 2 == 1 and el.get("alternateRowColor"):
             c.setFillColorRGB(*_hex(el["alternateRowColor"]))
             c.rect(x, y_top - row_h_pt, w, row_h_pt, fill=1, stroke=0)
-            c.setFillColorRGB(0.07, 0.09, 0.15)
         cur_x = x
         for i, col in enumerate(columns):
-            value = apply_format(
-                evaluate_value(col.get("cell", ""), {**ctx, "row": row}),
-                col.get("format"),
-            )
+            cell_ctx = {**ctx, "row": row, "RowNumber": idx + 1}
+            cstyle = _merge_conditional(col.get("cellStyle") or {}, col.get("conditional"), cell_ctx)
+            bg = cstyle.get("backgroundColor")
+            if bg:
+                c.setFillColorRGB(*_hex(bg))
+                c.rect(cur_x, y_top - row_h_pt, col_widths[i], row_h_pt, fill=1, stroke=0)
+            if col.get("runningTotal"):
+                key = col.get("id", i)
+                try:
+                    running[key] = running.get(key, 0.0) + float(evaluate_value(col.get("cell", ""), cell_ctx))
+                except (TypeError, ValueError):
+                    pass
+                value = apply_format(running.get(key, 0.0), col.get("format"))
+            else:
+                value = apply_format(evaluate_value(col.get("cell", ""), cell_ctx), col.get("format"))
+            c.setFillColorRGB(*_hex(cstyle.get("color") or "#111827"))
+            c.setFont(_font(cstyle), float(cstyle.get("fontSize") or 9))
             c.drawString(cur_x + 3, y_top - row_h_pt + 3, str(value))
             cur_x += col_widths[i]
         y_top -= row_h_pt
+
+    # footer / summary row (Crystal-style summary fields)
+    if el.get("showFooter"):
+        footer_h_pt = (el.get("footerHeight") or el.get("rowHeight") or 7) * mm
+        c.setFillColorRGB(0.93, 0.93, 0.96)
+        c.rect(x, y_top - footer_h_pt, w, footer_h_pt, fill=1, stroke=0)
+        c.setStrokeColorRGB(0.27, 0.27, 0.27)
+        c.setLineWidth(0.6)
+        c.line(x, y_top, x + w, y_top)
+        c.setFillColorRGB(0.07, 0.09, 0.15)
+        c.setFont("Helvetica-Bold", 9)
+        cur_x = x
+        for i, col in enumerate(columns):
+            c.drawString(cur_x + 3, y_top - footer_h_pt + 3, _footer_cell(col, rows, ctx))
+            cur_x += col_widths[i]
+        y_top -= footer_h_pt
 
     c.setStrokeColorRGB(0.85, 0.85, 0.88)
     c.setLineWidth(0.3)
     c.rect(x, y, w, h, fill=0, stroke=1)
     c.restoreState()
+
+
+def _merge_conditional(base: Mapping[str, Any], rules: Any, ctx: Mapping[str, Any]) -> dict:
+    """Apply conditional-formatting rules over a base style (Crystal Highlighting)."""
+    style = dict(base or {})
+    for r in rules or []:
+        when = r.get("when") if isinstance(r, Mapping) else None
+        if when and evaluate_bool(when, ctx):
+            style.update(r.get("style") or {})
+    return style
+
+
+def _sort_key(v: Any) -> tuple:
+    if v is None:
+        return (0, 0.0, "")
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return (1, float(v), "")
+    return (2, 0.0, str(v))
+
+
+def _shape_rows(rows: list, el: dict, ctx: Mapping[str, Any]) -> list:
+    """Filter (record selection) and sort table rows."""
+    out = list(rows)
+    flt = el.get("filter")
+    if flt:
+        out = [r for r in out if evaluate_bool(flt, {**ctx, "row": r})]
+    for s in reversed(el.get("sort") or []):
+        field = s.get("field")
+        desc = s.get("dir") == "desc"
+        out.sort(key=lambda r: _sort_key(r.get(field) if isinstance(r, Mapping) else None), reverse=desc)
+    return out
+
+
+def _footer_cell(col: dict, rows: list, ctx: Mapping[str, Any]) -> str:
+    summary = col.get("summary")
+    if summary:
+        values = []
+        for row in rows:
+            raw = evaluate_value(col.get("cell", ""), {**ctx, "row": row})
+            try:
+                values.append(float(raw))
+            except (TypeError, ValueError):
+                pass
+        return apply_format(_aggregate(summary, values, len(rows)), col.get("format"))
+    footer = col.get("footer")
+    if footer:
+        return apply_format(evaluate_value(footer, ctx), col.get("format"))
+    return ""
+
+
+def _aggregate(func: str, values: list[float], row_count: int) -> float:
+    if func == "count":
+        return row_count
+    if not values:
+        return 0
+    if func == "sum":
+        return sum(values)
+    if func == "avg":
+        return sum(values) / len(values)
+    if func == "min":
+        return min(values)
+    if func == "max":
+        return max(values)
+    return 0
+
+
+def _system_fields(doc: Mapping[str, Any], page: int = 1, page_count: int = 1) -> dict:
+    """Crystal-style special fields: {{Page}}, {{PageCount}}, {{PrintDate}}, …"""
+    now = datetime.now()
+    title = ""
+    meta = doc.get("meta")
+    if isinstance(meta, Mapping):
+        title = meta.get("title") or ""
+    return {
+        "Page": page,
+        "PageCount": page_count,
+        "PageNofM": f"{page} / {page_count}",
+        "PrintDate": now.strftime("%Y-%m-%d"),
+        "PrintTime": now.strftime("%H:%M"),
+        "ReportTitle": title,
+    }
 
 
 def _extract_data(doc: Mapping[str, Any]) -> dict:

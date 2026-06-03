@@ -72,7 +72,17 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
    Table (mit Zeilen-Binding), Chart (Bar/Line/Pie/Area/Doughnut), Page Break
  - **Bindings & Ausdrücke** – `{{invoice.customer.name}}`, `= row.qty * row.price`
  - **Formatierung** – `{0:C}` / `{0:N2}` / `yyyy-MM-dd`
- - **Drag-and-drop** vom Toolbox-Panel auf beliebige Bands
+ - **Special Fields** (à la Crystal Reports) – `{{Page}}`, `{{PageCount}}`,
+   `{{PageNofM}}`, `{{PrintDate}}`, `{{PrintTime}}`, `{{ReportTitle}}`, sowie
+   `{{RowNumber}}` in Tabellenzeilen
+ - **Summary-/Footer-Zeilen** in Tabellen – pro Spalte `sum`/`avg`/`count`/
+   `min`/`max` oder ein freier Footer-Text (z. B. „Gesamt:") für Total-Zeilen
+ - **Conditional Formatting** (Crystal „Highlighting Expert") – Regeln pro
+   Text/Zelle: `= row.total < 0` → rot/fett/Hintergrund
+ - **Record Selection & Sortierung** – Tabellen-`filter` (`= row.qty > 0`) und
+   Sortierung pro Feld (asc/desc)
+ - **Running Totals** – laufende (kumulierte) Summe in einer Tabellenspalte
+ - **Drag-and-drop** – Toolbox-Elemente *und* Datenfelder auf Bands/Elemente
  - **Snap-to-grid**, Arrow-Key-Nudging, Resize-Handles, Undo/Redo
  - **Data Explorer** – JSON paste-and-bind, Baumansicht, Drag von Feldern
  - **Property Grid** – alle Eigenschaften pro Selektion

@@ -10,5 +10,7 @@ export default defineConfig({
       "@reporting/designer": path.resolve(__dirname, "../../packages/designer/src/index.ts"),
     },
   },
-  server: { port: 5173, open: true },
+  // strictPort: fail instead of silently picking another port — keeps the
+  // dev origin at :5173 so it stays within the backend's CORS allowlist.
+  server: { port: 5173, strictPort: true, open: true },
 });

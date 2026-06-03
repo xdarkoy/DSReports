@@ -2,6 +2,7 @@ import type {
   BarcodeElement,
   ChartElement,
   ChartKind,
+  ConditionalFormat,
   ImageElement,
   LineElement,
   RectangleElement,
@@ -201,6 +202,10 @@ function TextProps({ el, patch }: { el: TextElement; patch: (u: (el: ReportEleme
         </Field>
       </Group>
       <BoxStyleGroup style={s} set={set} />
+      <ConditionalEditor
+        rules={el.conditional}
+        onChange={(r) => patch((p) => ({ ...(p as TextElement), conditional: r.length ? r : undefined }))}
+      />
     </>
   );
 }
@@ -300,6 +305,50 @@ function TableProps({ el, patch }: { el: TableElement; patch: (u: (el: ReportEle
         <Field label="Alt row">
           <input type="color" value={el.alternateRowColor ?? "#f9fafb"} onChange={(e) => patch((p) => ({ ...(p as TableElement), alternateRowColor: e.target.value }))} />
         </Field>
+        <Field label="Filter">
+          <input
+            value={el.filter ?? ""}
+            placeholder="= row.qty > 0"
+            onChange={(e) => patch((p) => ({ ...(p as TableElement), filter: e.target.value || undefined }))}
+          />
+        </Field>
+        <Field label="Sort field">
+          <input
+            value={el.sort?.[0]?.field ?? ""}
+            placeholder="z.B. price"
+            onChange={(e) => patch((p) => {
+              const t = p as TableElement;
+              const field = e.target.value;
+              return { ...t, sort: field ? [{ field, dir: t.sort?.[0]?.dir ?? "asc" }] : undefined };
+            })}
+          />
+        </Field>
+        {el.sort?.[0]?.field && (
+          <Field label="Sort dir">
+            <select
+              value={el.sort[0].dir ?? "asc"}
+              onChange={(e) => patch((p) => {
+                const t = p as TableElement;
+                return { ...t, sort: [{ field: t.sort![0].field, dir: e.target.value as "asc" | "desc" }] };
+              })}
+            >
+              <option value="asc">asc</option>
+              <option value="desc">desc</option>
+            </select>
+          </Field>
+        )}
+      </Group>
+      <Group title="Summary row">
+        <Field label="Show footer">
+          <input
+            type="checkbox"
+            checked={!!el.showFooter}
+            onChange={(e) => patch((p) => ({ ...(p as TableElement), showFooter: e.target.checked }))}
+          />
+        </Field>
+        {el.showFooter && (
+          <NumField label="Footer H (mm)" value={el.footerHeight ?? el.rowHeight ?? 7} onChange={(v) => patch((p) => ({ ...(p as TableElement), footerHeight: v }))} />
+        )}
       </Group>
       <Group title="Columns">
         {el.columns.map((c, i) => (
@@ -319,6 +368,39 @@ function TableProps({ el, patch }: { el: TableElement; patch: (u: (el: ReportEle
             <Field label="Format">
               <input value={c.format ?? ""} onChange={(e) => setCol(i, (x) => ({ ...x, format: e.target.value || undefined }))} />
             </Field>
+            <Field label="Running total">
+              <input
+                type="checkbox"
+                checked={!!c.runningTotal}
+                onChange={(e) => setCol(i, (x) => ({ ...x, runningTotal: e.target.checked || undefined }))}
+              />
+            </Field>
+            <ConditionalEditor
+              rules={c.conditional}
+              onChange={(r) => setCol(i, (x) => ({ ...x, conditional: r.length ? r : undefined }))}
+            />
+            {el.showFooter && (
+              <>
+                <Field label="Summary">
+                  <select
+                    value={c.summary ?? ""}
+                    onChange={(e) => setCol(i, (x) => ({ ...x, summary: (e.target.value || undefined) as TableColumn["summary"] }))}
+                  >
+                    <option value="">— none —</option>
+                    {(["sum", "avg", "count", "min", "max"] as const).map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
+                {!c.summary && (
+                  <Field label="Footer text">
+                    <input
+                      value={c.footer ?? ""}
+                      placeholder="e.g. Gesamt:"
+                      onChange={(e) => setCol(i, (x) => ({ ...x, footer: e.target.value || undefined }))}
+                    />
+                  </Field>
+                )}
+              </>
+            )}
           </div>
         ))}
         <button className="rd-btn" onClick={addCol}>+ Add column</button>
@@ -369,6 +451,48 @@ function BoxStyleGroup({ style, set }: { style: any; set: (k: any, v: any) => vo
       </Field>
       <NumField label="Radius" value={style.borderRadius ?? 0} onChange={(v) => set("borderRadius", v)} />
       <NumField label="Opacity" value={style.opacity ?? 1} step={0.05} onChange={(v) => set("opacity", v)} />
+    </Group>
+  );
+}
+
+// ---- conditional formatting (Crystal "Highlighting Expert") --------------
+
+function ConditionalEditor({
+  rules, onChange,
+}: { rules?: ConditionalFormat[]; onChange: (r: ConditionalFormat[]) => void }) {
+  const list = rules ?? [];
+  const update = (i: number, u: (r: ConditionalFormat) => ConditionalFormat) =>
+    onChange(list.map((r, idx) => (idx === i ? u(r) : r)));
+  const setStyle = (i: number, k: string, v: any) =>
+    update(i, (r) => ({ ...r, style: { ...r.style, [k]: v } }));
+  return (
+    <Group title="Conditional format">
+      {list.map((r, i) => (
+        <div key={i} style={{ border: "1px solid var(--rd-border)", borderRadius: 6, padding: 8, marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+            <strong style={{ fontSize: 11 }}>Rule #{i + 1}</strong>
+            <span style={{ flex: 1 }} />
+            <button className="rd-btn rd-icon" title="Remove" onClick={() => onChange(list.filter((_, idx) => idx !== i))}>×</button>
+          </div>
+          <Field label="When">
+            <input value={r.when} placeholder="= row.total < 0" onChange={(e) => update(i, (x) => ({ ...x, when: e.target.value }))} />
+          </Field>
+          <Field label="Color">
+            <input type="color" value={r.style.color ?? "#111827"} onChange={(e) => setStyle(i, "color", e.target.value)} />
+          </Field>
+          <Field label="Background">
+            <input type="color" value={r.style.backgroundColor ?? "#ffffff"} onChange={(e) => setStyle(i, "backgroundColor", e.target.value)} />
+          </Field>
+          <Field label="Bold">
+            <input
+              type="checkbox"
+              checked={r.style.fontWeight === "bold" || r.style.fontWeight === 700}
+              onChange={(e) => setStyle(i, "fontWeight", e.target.checked ? "bold" : undefined)}
+            />
+          </Field>
+        </div>
+      ))}
+      <button className="rd-btn" onClick={() => onChange([...list, { when: "", style: {} }])}>+ Add rule</button>
     </Group>
   );
 }

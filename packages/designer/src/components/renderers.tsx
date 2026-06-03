@@ -6,10 +6,14 @@ import type {
   PageBreakElement,
   RectangleElement,
   ReportElement,
+  TableColumn,
   TableElement,
   TextElement,
 } from "@reporting/schema";
 import { applyFormat, evaluateArray, evaluateValue } from "../utils/expression";
+import { aggregate } from "../utils/reportFields";
+import { mergeConditional } from "../utils/conditional";
+import { shapeRows } from "../utils/tableData";
 
 export function renderElement(el: ReportElement, data: Record<string, unknown>, pxPerMm: number): JSX.Element {
   switch (el.type) {
@@ -25,7 +29,7 @@ export function renderElement(el: ReportElement, data: Record<string, unknown>, 
 }
 
 function TextR({ el, data }: { el: TextElement; data: Record<string, unknown> }) {
-  const style = el.style ?? {};
+  const style = mergeConditional(el.style, el.conditional, data);
   const text = applyFormat(evaluateValue(el.value, data), el.format);
   return (
     <div
@@ -150,10 +154,12 @@ function PageBreakR(_: { el: PageBreakElement }) {
 }
 
 function TableR({ el, data, pxPerMm }: { el: TableElement; data: Record<string, unknown>; pxPerMm: number }) {
-  const rows = evaluateArray(el.dataSource ?? "", data);
+  const bound = evaluateArray(el.dataSource ?? "", data);
+  const rows = shapeRows(bound, el, data); // filter + sort (Crystal record selection/sort)
   const headerH = (el.headerHeight ?? 8) * pxPerMm;
   const rowH = (el.rowHeight ?? 7) * pxPerMm;
   const colTotal = el.columns.reduce((s, c) => s + c.width, 0) || 1;
+  const running: Record<string, number> = {};
 
   return (
     <table className="rd-tbl">
@@ -172,21 +178,50 @@ function TableR({ el, data, pxPerMm }: { el: TableElement; data: Record<string, 
         {(rows.length ? rows : [{}, {}, {}]).map((row, i) => (
           <tr key={i} style={{ height: rowH }}>
             {el.columns.map((c) => {
-              const ctx = { ...data, row };
+              const ctx = { ...data, row, RowNumber: i + 1 };
+              const cellStyle = mergeConditional(c.cellStyle, c.conditional, ctx);
+              let content: React.ReactNode;
+              if (c.runningTotal && rows.length) {
+                running[c.id] = (running[c.id] ?? 0) + (Number(evaluateValue(c.cell, ctx)) || 0);
+                content = applyFormat(running[c.id], c.format);
+              } else {
+                content = applyFormat(evaluateValue(c.cell, ctx), c.format) || (rows.length ? "" : <span style={{ opacity: 0.25 }}>…</span>);
+              }
               return (
                 <td
                   key={c.id}
-                  style={{ width: `${(c.width / colTotal) * 100}%`, ...styleOf(c.cellStyle), background: i % 2 ? el.alternateRowColor : undefined }}
+                  style={{ width: `${(c.width / colTotal) * 100}%`, ...styleOf(cellStyle), background: cellStyle.backgroundColor ?? (i % 2 ? el.alternateRowColor : undefined) }}
                 >
-                  {applyFormat(evaluateValue(c.cell, ctx), c.format) || (rows.length ? "" : <span style={{ opacity: 0.25 }}>…</span>)}
+                  {content}
                 </td>
               );
             })}
           </tr>
         ))}
       </tbody>
+      {el.showFooter && (
+        <tfoot>
+          <tr style={{ height: (el.footerHeight ?? el.rowHeight ?? 7) * pxPerMm, fontWeight: 600, borderTop: "1.5px solid #444" }}>
+            {el.columns.map((c) => (
+              <td key={c.id} style={{ width: `${(c.width / colTotal) * 100}%`, ...styleOf(c.cellStyle) }}>
+                {footerCell(c, rows, data)}
+              </td>
+            ))}
+          </tr>
+        </tfoot>
+      )}
     </table>
   );
+}
+
+/** Footer cell: a column summary aggregate, or a literal/expression footer. */
+function footerCell(c: TableColumn, rows: unknown[], data: Record<string, unknown>): string {
+  if (c.summary) {
+    const values = rows.map((row) => Number(evaluateValue(c.cell, { ...data, row })));
+    return applyFormat(aggregate(c.summary, values), c.format);
+  }
+  if (c.footer) return applyFormat(evaluateValue(c.footer, data), c.format);
+  return "";
 }
 
 function styleOf(s: any): React.CSSProperties {

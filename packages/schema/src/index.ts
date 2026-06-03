@@ -89,6 +89,16 @@ export interface BaseElement {
   locked?: boolean;
 }
 
+/**
+ * Conditional formatting rule (Crystal Reports "Highlighting Expert"): when
+ * `when` evaluates truthy, `style` is merged over the base style. Later rules
+ * win, so order matters.
+ */
+export interface ConditionalFormat {
+  when: ValueExpr;
+  style: TextStyle & BoxStyle;
+}
+
 export interface TextElement extends BaseElement {
   type: "text";
   value: ValueExpr;
@@ -98,6 +108,8 @@ export interface TextElement extends BaseElement {
   /** shrink font to fit */
   autoShrink?: boolean;
   wrap?: boolean;
+  /** conditional formatting rules applied over `style` */
+  conditional?: ConditionalFormat[];
 }
 
 export interface ImageElement extends BaseElement {
@@ -136,6 +148,12 @@ export interface BarcodeElement extends BaseElement {
   style?: BoxStyle;
 }
 
+/**
+ * Aggregate function for a table summary/footer cell – modelled on Crystal
+ * Reports' summary fields.
+ */
+export type SummaryFunc = "sum" | "avg" | "count" | "min" | "max";
+
 export interface TableColumn {
   id: string;
   header: ValueExpr;
@@ -145,6 +163,20 @@ export interface TableColumn {
   format?: string;
   headerStyle?: TextStyle & BoxStyle;
   cellStyle?: TextStyle & BoxStyle;
+  /** aggregate shown in the footer/summary row for this column */
+  summary?: SummaryFunc;
+  /** literal/expression for the footer cell when no `summary` is set (e.g. "Gesamt:") */
+  footer?: ValueExpr;
+  /** show a running (cumulative) total of this column's numeric value */
+  runningTotal?: boolean;
+  /** conditional formatting rules applied over `cellStyle` per row */
+  conditional?: ConditionalFormat[];
+}
+
+/** Sort spec for table rows (Crystal-style record sorting). */
+export interface TableSort {
+  field: string;
+  dir?: "asc" | "desc";
 }
 
 export interface TableElement extends BaseElement {
@@ -156,6 +188,13 @@ export interface TableElement extends BaseElement {
   headerHeight?: number;
   alternateRowColor?: string;
   showHeader?: boolean;
+  /** show a summary/footer row (totals); see TableColumn.summary / footer */
+  showFooter?: boolean;
+  footerHeight?: number;
+  /** keep only rows where this condition is truthy, e.g. "= row.qty > 0" */
+  filter?: ValueExpr;
+  /** sort rows before rendering (Crystal-style record sort) */
+  sort?: TableSort[];
   pageBreak?: boolean;
   style?: BoxStyle;
 }
