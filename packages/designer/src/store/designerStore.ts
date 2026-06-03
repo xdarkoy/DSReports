@@ -8,7 +8,7 @@ import {
   type ElementType,
   type ReportDocument,
   type ReportElement,
-} from "@reporting/schema";
+} from "@xdarkoy/schema";
 
 export type Selection =
   | { kind: "none" }

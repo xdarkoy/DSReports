@@ -1,4 +1,4 @@
-import type { SummaryFunc } from "@reporting/schema";
+import type { SummaryFunc } from "@xdarkoy/schema";
 import { aggregate } from "./reportFields";
 
 export interface PivotResult {

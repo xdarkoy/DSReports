@@ -4,7 +4,7 @@ import {
   ReportDesigner,
   type ReportDocument,
   createEmptyReport,
-} from "@reporting/designer";
+} from "@xdarkoy/designer";
 import "../../../../packages/designer/src/styles/designer.css";
 
 declare const acquireVsCodeApi: () => {

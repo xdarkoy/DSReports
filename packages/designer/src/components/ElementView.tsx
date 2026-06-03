@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import clsx from "clsx";
-import type { BandType, ReportElement } from "@reporting/schema";
+import type { BandType, ReportElement } from "@xdarkoy/schema";
 import { useDesignerStore } from "../store/designerStore";
 import { renderElement } from "./renderers";
 import { evaluateCondition } from "../utils/expression";

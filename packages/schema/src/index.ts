@@ -1,5 +1,5 @@
 /**
- * @reporting/schema
+ * @xdarkoy/schema
  *
  * Das "moderne RDLC". Ein Report-Dokument ist eine deklarative JSON-Struktur,
  * die sowohl vom Designer (Frontend) erzeugt/gelesen, als auch von der

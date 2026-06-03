@@ -1,4 +1,4 @@
-import type { TableElement } from "@reporting/schema";
+import type { TableElement } from "@xdarkoy/schema";
 import { evaluateCondition } from "./expression";
 
 /**

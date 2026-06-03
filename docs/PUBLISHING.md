@@ -4,13 +4,13 @@ How to release the npm packages and the editor extensions. The npm packages are
 configured as **public scoped** packages (`publishConfig.access: "public"`,
 Apache‑2.0).
 
-## npm packages (`@reporting/schema`, `@reporting/designer`, `@reporting/ai`)
+## npm packages (`@xdarkoy/schema`, `@xdarkoy/designer`, `@xdarkoy/ai`)
 
 ### 0. Own the scope
-You can only publish `@reporting/*` if you own an npm **organization** named
+You can only publish `@xdarkoy/*` if you own an npm **organization** named
 `reporting` (free for public packages — create it at
 <https://www.npmjs.com/org/create>). To publish under a different scope, rename
-the three package names + their internal deps + every `@reporting/...` import in
+the three package names + their internal deps + every `@xdarkoy/...` import in
 the repo (apps, the VS Code webview, the Vite aliases), then proceed.
 
 ### 1. Log in
@@ -33,7 +33,7 @@ Each tarball should contain `dist/` (js + `.d.ts`), the `README.md`, the
 `package.json` and the license.
 
 ### 4. Publish — schema first
-`designer` and `ai` declare `@reporting/schema` as a dependency, so it must
+`designer` and `ai` declare `@xdarkoy/schema` as a dependency, so it must
 exist on the registry first.
 ```bash
 npm publish --workspace packages/schema
@@ -44,15 +44,15 @@ npm publish --workspace packages/ai
 
 ### 5. Verify
 ```bash
-npm view @reporting/designer version
+npm view @xdarkoy/designer version
 # in a throwaway app:
 npm create vite@latest demo -- --template react-ts && cd demo
-npm i react react-dom @reporting/designer @reporting/schema @reporting/ai
+npm i react react-dom @xdarkoy/designer @xdarkoy/schema @xdarkoy/ai
 ```
 
 ### Versioning
 Bump versions before re‑publishing (npm forbids overwriting a published
-version). Keep the three in lockstep and update the internal `@reporting/schema`
+version). Keep the three in lockstep and update the internal `@xdarkoy/schema`
 dependency range in `designer`/`ai`.
 
 ## VS Code extension (`.vsix`)

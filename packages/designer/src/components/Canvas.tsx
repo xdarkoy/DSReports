@@ -8,7 +8,7 @@ import {
   type BandType,
   type ElementType,
   type ReportElement,
-} from "@reporting/schema";
+} from "@xdarkoy/schema";
 import { useDesignerStore } from "../store/designerStore";
 import { ElementView } from "./ElementView";
 import { evaluateArray, resolveBinding } from "../utils/expression";

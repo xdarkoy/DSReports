@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ReportDesigner, type ReportDocument } from "@reporting/designer";
+import { ReportDesigner, type ReportDocument } from "@xdarkoy/designer";
 
 // Python render backend (see backend/README.md). Override with VITE_RENDER_URL.
 const RENDER_URL = import.meta.env.VITE_RENDER_URL ?? "http://127.0.0.1:8787/render";

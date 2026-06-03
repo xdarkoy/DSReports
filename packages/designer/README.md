@@ -1,4 +1,4 @@
-# @reporting/designer
+# @xdarkoy/designer
 
 A modern, embeddable **React report designer** — bands, drag‑and‑drop elements,
 data binding, expressions, tables with grouping/subtotals, cross‑tabs,
@@ -6,9 +6,9 @@ sub‑reports, conditional formatting and an optional AI copilot. The same JSON
 document (`*.myreport.json`) renders to PDF via the companion Python backend.
 
 ```bash
-npm i @reporting/designer @reporting/schema react react-dom
+npm i @xdarkoy/designer @xdarkoy/schema react react-dom
 # optional AI copilot:
-npm i @reporting/ai
+npm i @xdarkoy/ai
 ```
 
 > Requires React ≥ 18 (peer dependency).
@@ -16,8 +16,8 @@ npm i @reporting/ai
 ## Quick start
 
 ```tsx
-import { ReportDesigner, type ReportDocument } from "@reporting/designer";
-import "@reporting/designer/styles.css";
+import { ReportDesigner, type ReportDocument } from "@xdarkoy/designer";
+import "@xdarkoy/designer/styles.css";
 
 export default function App() {
   return (
@@ -38,7 +38,7 @@ export default function App() {
 }
 ```
 
-`import "@reporting/designer/styles.css"` once (the designer's CSS).
+`import "@xdarkoy/designer/styles.css"` once (the designer's CSS).
 
 ## `<ReportDesigner>` props
 
@@ -48,7 +48,7 @@ export default function App() {
 | `initialDocument` | `ReportDocument` | Uncontrolled initial value. |
 | `onDocumentChange` | `(doc) => void` | Fires on every document change. |
 | `sampleData` | `unknown` | Design‑time data for bindings/preview. |
-| `ai` | `AIProvider` | Optional copilot (see `@reporting/ai`). |
+| `ai` | `AIProvider` | Optional copilot (see `@xdarkoy/ai`). |
 | `host` | `HostBridge` | `onSave`, `onChange`, `onRequestPreview`, `resolveAsset`. |
 | `readOnly` | `boolean` | Blocks **all** document edits (enforced in the store). |
 | `layout` | `{ toolbox?, properties?, dataExplorer?, aiCopilot?, topbar? }` | Hide panels. |
@@ -60,8 +60,8 @@ export default function App() {
 delete · arrows nudge 1 mm · `Shift`+arrows nudge by grid.
 
 ## Where things live
-- Report document shape & helpers: **[@reporting/schema](../schema/README.md)**
-- AI copilot bindings: **[@reporting/ai](../ai/README.md)**
+- Report document shape & helpers: **[@xdarkoy/schema](../schema/README.md)**
+- AI copilot bindings: **[@xdarkoy/ai](../ai/README.md)**
 - Full feature guide (bindings, special fields, grouping, cross‑tab, …):
   **[docs/USAGE.md](../../docs/USAGE.md)**
 

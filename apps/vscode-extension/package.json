@@ -77,8 +77,8 @@
     "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
-    "@reporting/designer": "0.1.0",
-    "@reporting/schema": "0.1.0",
+    "@xdarkoy/designer": "0.1.0",
+    "@xdarkoy/schema": "0.1.0",
     "@types/node": "^20.11.30",
     "@types/vscode": "^1.85.0",
     "@vitejs/plugin-react": "^6.0.2",

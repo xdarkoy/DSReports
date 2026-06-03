@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import type { ReportElement, TableColumn } from "@reporting/schema";
+import type { ReportElement, TableColumn } from "@xdarkoy/schema";
 import { evaluateArray } from "./expression";
 
 /** Build table columns from the first row of a bound array (scalar fields). */

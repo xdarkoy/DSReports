@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { nanoid } from "nanoid";
-import type { DataField, DataSource } from "@reporting/schema";
+import type { DataField, DataSource } from "@xdarkoy/schema";
 import { useDesignerStore } from "../store/designerStore";
 import { inferSchema } from "../utils/schema";
 

@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as crypto from "crypto";
 import { TextEncoder, TextDecoder } from "util";
-import { validateReport } from "@reporting/schema";
+import { validateReport } from "@xdarkoy/schema";
 
 const API_KEY_SECRET = "reporting.anthropicApiKey";
 

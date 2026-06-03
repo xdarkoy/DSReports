@@ -1,6 +1,6 @@
-# @reporting/ai
+# @xdarkoy/ai
 
-Optional **AI copilot** bindings for `@reporting/designer` — prompt‑to‑layout,
+Optional **AI copilot** bindings for `@xdarkoy/designer` — prompt‑to‑layout,
 restyle and smart data mapping, backed by Claude. Two implementations:
 
 - `createClaudeAI` — calls the Anthropic SDK directly. **Server/Node only**
@@ -9,7 +9,7 @@ restyle and smart data mapping, backed by Claude. Two implementations:
   Use this in the browser so the key stays on the server.
 
 ```bash
-npm i @reporting/ai
+npm i @xdarkoy/ai
 # createClaudeAI also needs the SDK (peer, optional):
 npm i @anthropic-ai/sdk
 ```
@@ -17,7 +17,7 @@ npm i @anthropic-ai/sdk
 ## Browser (recommended): relay
 
 ```tsx
-import { createRelayAI } from "@reporting/ai";
+import { createRelayAI } from "@xdarkoy/ai";
 const ai = createRelayAI("/api/ai");   // your endpoint forwards {action, payload} to Claude
 <ReportDesigner ai={ai} />
 ```
@@ -28,7 +28,7 @@ and should return the model's JSON. Keep the Anthropic key on the server.
 ## Server / Node: direct
 
 ```ts
-import { createClaudeAI } from "@reporting/ai";
+import { createClaudeAI } from "@xdarkoy/ai";
 const ai = createClaudeAI({ apiKey: process.env.ANTHROPIC_API_KEY, model: "claude-sonnet-4-6" });
 ```
 
@@ -47,7 +47,7 @@ interface AIProvider {
 ```
 
 All results are run through `sanitizeReport`/`sanitizeElements`
-(`@reporting/schema`) so malformed model output can't reach the renderer.
+(`@xdarkoy/schema`) so malformed model output can't reach the renderer.
 
 See **[docs/USAGE.md](../../docs/USAGE.md)**.
 

@@ -1,4 +1,4 @@
-import type { ReportDocument, ReportElement } from "@reporting/schema";
+import type { ReportDocument, ReportElement } from "@xdarkoy/schema";
 
 export interface AIProvider {
   /** Generate a full report document from a natural language prompt. */

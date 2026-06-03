@@ -1,4 +1,4 @@
-import type { ConditionalFormat } from "@reporting/schema";
+import type { ConditionalFormat } from "@xdarkoy/schema";
 import { evaluateCondition } from "./expression";
 
 /**

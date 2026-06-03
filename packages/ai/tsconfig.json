@@ -4,7 +4,7 @@
     "outDir": "dist",
     "rootDir": "..",
     "paths": {
-      "@reporting/schema": ["../schema/src/index.ts"]
+      "@xdarkoy/schema": ["../schema/src/index.ts"]
     }
   },
   "include": ["src/**/*"]

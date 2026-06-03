@@ -1,6 +1,6 @@
 # Report Designer – Visual Studio Extension (VSIX)
 
-This project wires the React-based `@reporting/designer` into **Visual Studio
+This project wires the React-based `@xdarkoy/designer` into **Visual Studio
 2022** via a native custom editor backed by WebView2.
 
 ## Build

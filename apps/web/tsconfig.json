@@ -3,8 +3,8 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
-      "@reporting/schema": ["../../packages/schema/src/index.ts"],
-      "@reporting/designer": ["../../packages/designer/src/index.ts"]
+      "@xdarkoy/schema": ["../../packages/schema/src/index.ts"],
+      "@xdarkoy/designer": ["../../packages/designer/src/index.ts"]
     }
   },
   "include": ["src"]

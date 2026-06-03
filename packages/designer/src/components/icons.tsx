@@ -1,4 +1,4 @@
-import type { ElementType } from "@reporting/schema";
+import type { ElementType } from "@xdarkoy/schema";
 
 interface Props {
   size?: number;

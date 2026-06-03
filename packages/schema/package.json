@@ -1,5 +1,5 @@
 {
-  "name": "@reporting/schema",
+  "name": "@xdarkoy/schema",
   "version": "0.1.0",
   "description": "Shared report document schema (the modern RDLC) – TypeScript types + JSON Schema",
   "main": "./dist/index.js",

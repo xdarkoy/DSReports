@@ -1,5 +1,5 @@
 /**
- * @reporting/ai – Claude-backed AIProvider for the designer.
+ * @xdarkoy/ai – Claude-backed AIProvider for the designer.
  *
  * The designer itself defines the AIProvider interface (to avoid a hard
  * dependency on any SDK). This package provides an optional, batteries-included
@@ -12,7 +12,7 @@ import {
   sanitizeReport,
   type ReportDocument,
   type ReportElement,
-} from "@reporting/schema";
+} from "@xdarkoy/schema";
 
 // keep SDK import lazy to avoid bundling it into the designer when unused.
 type AnthropicClient = {

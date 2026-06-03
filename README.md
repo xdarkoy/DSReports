@@ -18,14 +18,14 @@ Zeitmaschinen-Optik.
 │           └──────────────┬─────┴────────────────────┘              │
 │                          │                                         │
 │                  ┌───────▼────────┐                                │
-│                  │ @reporting/    │ ← React component (npm pkg)    │
+│                  │ @xdarkoy/    │ ← React component (npm pkg)    │
 │                  │ designer       │   (Canvas, Toolbox, Props,     │
 │                  │                │    Data Explorer, AI Copilot)  │
 │                  └───────┬────────┘                                │
 │           ┌──────────────┼──────────────────────┐                  │
 │           │              │                      │                  │
 │   ┌───────▼──────┐ ┌─────▼────────┐   ┌────────▼─────────┐         │
-│   │ @reporting/  │ │ @reporting/  │   │ reporting-       │         │
+│   │ @xdarkoy/  │ │ @xdarkoy/  │   │ reporting-       │         │
 │   │ schema       │ │ ai           │   │ backend (Python) │         │
 │   │ (types)      │ │ (Claude)     │   │ → PDF            │         │
 │   └──────────────┘ └──────────────┘   └──────────────────┘         │
@@ -114,9 +114,9 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
 ```
 Reporting/
 ├── packages/
-│   ├── schema/            @reporting/schema  – Report-JSON-Typen
-│   ├── designer/          @reporting/designer – React-Komponente (NPM)
-│   └── ai/                @reporting/ai      – Claude-Anbindung
+│   ├── schema/            @xdarkoy/schema  – Report-JSON-Typen
+│   ├── designer/          @xdarkoy/designer – React-Komponente (NPM)
+│   └── ai/                @xdarkoy/ai      – Claude-Anbindung
 ├── apps/
 │   ├── web/               Standalone-Demo (Vite)
 │   └── vscode-extension/  VS Code Extension (Custom Editor + WebView)
@@ -188,14 +188,14 @@ auf **Preview** auf und öffnen das zurückgegebene PDF.
   Render-Backend, Hosts.
 - **[docs/PUBLISHING.md](docs/PUBLISHING.md)** – npm-Pakete & Extensions
   veröffentlichen.
-- Paket-READMEs: [@reporting/designer](packages/designer/README.md) ·
-  [@reporting/schema](packages/schema/README.md) ·
-  [@reporting/ai](packages/ai/README.md)
+- Paket-READMEs: [@xdarkoy/designer](packages/designer/README.md) ·
+  [@xdarkoy/schema](packages/schema/README.md) ·
+  [@xdarkoy/ai](packages/ai/README.md)
 
 ## Als NPM-Paket in deine eigene App einbetten
 
 ```bash
-npm i @reporting/designer @reporting/schema
+npm i @xdarkoy/designer @xdarkoy/schema
 ```
 
 > ⚠️ **API-Key niemals im Browser-Bundle.** `createClaudeAI({ apiKey })` ruft
@@ -204,9 +204,9 @@ npm i @reporting/designer @reporting/schema
 > Server, das Frontend spricht nur deinen eigenen Endpoint an.
 
 ```tsx
-import { ReportDesigner } from "@reporting/designer";
-import "@reporting/designer/styles.css";
-import { createRelayAI } from "@reporting/ai";
+import { ReportDesigner } from "@xdarkoy/designer";
+import "@xdarkoy/designer/styles.css";
+import { createRelayAI } from "@xdarkoy/ai";
 
 // Key bleibt serverseitig; "/api/ai" proxyt zu Anthropic.
 const ai = createRelayAI("/api/ai");

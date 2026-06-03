@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@reporting/schema": path.resolve(__dirname, "../../packages/schema/src/index.ts"),
-      "@reporting/designer": path.resolve(__dirname, "../../packages/designer/src/index.ts"),
+      "@xdarkoy/schema": path.resolve(__dirname, "../../packages/schema/src/index.ts"),
+      "@xdarkoy/designer": path.resolve(__dirname, "../../packages/designer/src/index.ts"),
     },
   },
   // strictPort: fail instead of silently picking another port — keeps the

@@ -8,7 +8,7 @@ import { Canvas } from "./components/Canvas";
 import { PropertyGrid } from "./components/PropertyGrid";
 import { DataExplorer } from "./components/DataExplorer";
 import { AICopilot } from "./components/AICopilot";
-import { createEmptyReport } from "@reporting/schema";
+import { createEmptyReport } from "@xdarkoy/schema";
 
 export function ReportDesigner(props: ReportDesignerProps) {
   const {

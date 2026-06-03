@@ -1,5 +1,5 @@
 {
-  "name": "@reporting/designer",
+  "name": "@xdarkoy/designer",
   "version": "0.1.0",
   "description": "Moderner webbasierter Report Designer – als einbettbare React-Komponente",
   "main": "./dist/index.js",
@@ -28,7 +28,7 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@reporting/schema": "0.1.0",
+    "@xdarkoy/schema": "0.1.0",
     "clsx": "^2.1.0",
     "nanoid": "^5.0.6",
     "zustand": "^4.5.2"

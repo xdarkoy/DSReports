@@ -1,12 +1,12 @@
-# @reporting/schema
+# @xdarkoy/schema
 
 The shared **report document schema** for the Reporting designer — TypeScript
 types plus small runtime helpers. Consumed by both the React designer
-(`@reporting/designer`) and the Python render backend, so a report is one
+(`@xdarkoy/designer`) and the Python render backend, so a report is one
 portable JSON file (`*.myreport.json`).
 
 ```bash
-npm i @reporting/schema
+npm i @xdarkoy/schema
 ```
 
 ## Document shape
@@ -40,7 +40,7 @@ import {
   sanitizeElements,         // coerce a list, dropping unsalvageable entries
   sanitizeReport,           // sanitize every element in a document's bands
   SCHEMA_VERSION, DEFAULT_PAGE,
-} from "@reporting/schema";
+} from "@xdarkoy/schema";
 
 const doc = createEmptyReport("Rechnung");
 ```

@@ -1,4 +1,4 @@
-import type { ElementType } from "@reporting/schema";
+import type { ElementType } from "@xdarkoy/schema";
 import { ELEMENT_ICONS } from "./icons";
 
 const BASIC: { type: ElementType; label: string }[] = [

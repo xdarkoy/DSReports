@@ -1,4 +1,4 @@
-import type { SummaryFunc } from "@reporting/schema";
+import type { SummaryFunc } from "@xdarkoy/schema";
 
 /**
  * Crystal-Reports-style "Special Fields" injected into the evaluation context,

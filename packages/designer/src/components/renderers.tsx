@@ -11,7 +11,7 @@ import type {
   TableColumn,
   TableElement,
   TextElement,
-} from "@reporting/schema";
+} from "@xdarkoy/schema";
 import { applyFormat, evaluateArray, evaluateValue, evaluateCondition, resolveBinding } from "../utils/expression";
 import { aggregate } from "../utils/reportFields";
 import { mergeConditional } from "../utils/conditional";

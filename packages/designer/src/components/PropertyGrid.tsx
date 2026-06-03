@@ -13,7 +13,7 @@ import type {
   TableColumn,
   TableElement,
   TextElement,
-} from "@reporting/schema";
+} from "@xdarkoy/schema";
 import { nanoid } from "nanoid";
 import { useDesignerStore } from "../store/designerStore";
 

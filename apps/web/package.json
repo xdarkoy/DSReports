@@ -1,5 +1,5 @@
 {
-  "name": "@reporting/web",
+  "name": "@xdarkoy/web",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@reporting/designer": "0.1.0",
-    "@reporting/schema": "0.1.0",
+    "@xdarkoy/designer": "0.1.0",
+    "@xdarkoy/schema": "0.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

@@ -1,7 +1,7 @@
 {
-  "name": "@reporting/ai",
+  "name": "@xdarkoy/ai",
   "version": "0.1.0",
-  "description": "AI co-pilot bindings for @reporting/designer (Claude / OpenAI).",
+  "description": "AI co-pilot bindings for @xdarkoy/designer (Claude / OpenAI).",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -21,7 +21,7 @@
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
   },
   "dependencies": {
-    "@reporting/schema": "0.1.0"
+    "@xdarkoy/schema": "0.1.0"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.27.0"

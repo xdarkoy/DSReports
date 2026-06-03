@@ -27,13 +27,13 @@ and wire the AI copilot.
 ## 1. Install & embed
 
 ```bash
-npm i @reporting/designer @reporting/schema react react-dom
-npm i @reporting/ai            # optional copilot
+npm i @xdarkoy/designer @xdarkoy/schema react react-dom
+npm i @xdarkoy/ai            # optional copilot
 ```
 
 ```tsx
-import { ReportDesigner } from "@reporting/designer";
-import "@reporting/designer/styles.css";
+import { ReportDesigner } from "@xdarkoy/designer";
+import "@xdarkoy/designer/styles.css";
 
 <div style={{ height: "100vh" }}>
   <ReportDesigner
@@ -215,7 +215,7 @@ page‑1 only, `reportFooter` + the table summary are last‑page only, and
 
 ## 15. The AI copilot
 
-Pass an `ai` provider (see [@reporting/ai](../packages/ai/README.md)). In the
+Pass an `ai` provider (see [@xdarkoy/ai](../packages/ai/README.md)). In the
 browser use `createRelayAI("/api/ai")` so the Anthropic key stays server‑side.
 Buttons: **Generate** (prompt → layout), **Restyle**, **Auto‑map** (sample data
 → elements). Without a provider, a built‑in heuristic produces plausible

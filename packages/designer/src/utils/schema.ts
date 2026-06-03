@@ -1,6 +1,6 @@
-import type { DataField } from "@reporting/schema";
+import type { DataField } from "@xdarkoy/schema";
 
-/** Infer a @reporting/schema DataField[] tree from a sample JSON object. */
+/** Infer a @xdarkoy/schema DataField[] tree from a sample JSON object. */
 export function inferSchema(sample: unknown, name = "root"): DataField {
   if (sample === null || sample === undefined) {
     return { name, type: "string" };

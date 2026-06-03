@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { sanitizeElements, sanitizeReport, type ReportDocument } from "@reporting/schema";
+import { sanitizeElements, sanitizeReport, type ReportDocument } from "@xdarkoy/schema";
 import { useDesignerStore } from "../store/designerStore";
 import type { AIProvider } from "../types";
 import { SparkleIcon } from "./icons";
@@ -95,7 +95,7 @@ export function AICopilot({ ai }: Props) {
 // layouts from a few common prompts.
 
 import { nanoid } from "nanoid";
-import { createEmptyReport, type ReportElement } from "@reporting/schema";
+import { createEmptyReport, type ReportElement } from "@xdarkoy/schema";
 
 function heuristicGenerate(
   prompt: string,
