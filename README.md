@@ -179,6 +179,19 @@ python -m reporting_backend.server
 Sowohl VS Code als auch Visual Studio rufen dieses Endpoint beim Klick
 auf **Preview** auf und öffnen das zurückgegebene PDF.
 
+## Dokumentation
+
+- **[docs/USAGE.md](docs/USAGE.md)** – vollständiger Verwendungs-Guide:
+  Einbetten, Bands, Elemente, Data-Binding, Ausdrücke & Formatierung, Special
+  Fields, Tabellen (Summen/Running-Totals/Conditional/Sort/Filter/Gruppen),
+  Cross-Tab, Sub-Reports, Parameter, Band-Gruppen, Multi-Page, AI-Copilot,
+  Render-Backend, Hosts.
+- **[docs/PUBLISHING.md](docs/PUBLISHING.md)** – npm-Pakete & Extensions
+  veröffentlichen.
+- Paket-READMEs: [@reporting/designer](packages/designer/README.md) ·
+  [@reporting/schema](packages/schema/README.md) ·
+  [@reporting/ai](packages/ai/README.md)
+
 ## Als NPM-Paket in deine eigene App einbetten
 
 ```bash
