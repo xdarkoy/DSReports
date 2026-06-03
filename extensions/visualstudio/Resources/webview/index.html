@@ -16,23 +16,27 @@
     <script type="module" src="./designer.js"></script>
     <script>
       // WebView2 bridge shim — lets the same React bundle we ship in VS Code
-      // (which calls `acquireVsCodeApi()`) also run inside WebView2.
-      window.acquireVsCodeApi = function () {
-        var handlers = [];
-        window.addEventListener("message", function (e) {
-          for (var h of handlers) h({ data: e.data });
-        });
-        return {
-          postMessage: function (msg) {
-            window.chrome.webview.postMessage(msg);
-          },
-          setState: function () {},
-          getState: function () { return null; },
+      // (which uses window 'message' events + acquireVsCodeApi) run in WebView2.
+      (function () {
+        var wv = window.chrome && window.chrome.webview;
+        // Host -> guest: PostWebMessageAsJson arrives on chrome.webview's
+        // 'message' event. Re-dispatch it as a standard window 'message' event
+        // so the React app's window.addEventListener("message", ...) receives
+        // load / serialize / config / ai-result.
+        if (wv && wv.addEventListener) {
+          wv.addEventListener("message", function (e) {
+            window.dispatchEvent(new MessageEvent("message", { data: e.data }));
+          });
+        }
+        // Guest -> host: forward postMessage to the native WebView2 channel.
+        window.acquireVsCodeApi = function () {
+          return {
+            postMessage: function (msg) { if (wv) wv.postMessage(msg); },
+            setState: function () {},
+            getState: function () { return null; },
+          };
         };
-      };
-      // WebView2 uses chrome.webview.postMessage for host → guest already;
-      // we need guest → host via postWebMessageAsJson which is handled natively.
-      window.chrome = window.chrome || {};
+      })();
     </script>
   </body>
 </html>

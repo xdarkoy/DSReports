@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ReportDocument } from "@reporting/schema";
+import { sanitizeElements, sanitizeReport, type ReportDocument } from "@reporting/schema";
 import { useDesignerStore } from "../store/designerStore";
 import type { AIProvider } from "../types";
 import { SparkleIcon } from "./icons";
@@ -44,10 +44,13 @@ export function AICopilot({ ai }: Props) {
       } else if (intent === "restyle") {
         result = await ai.restyle(prompt, doc);
       } else {
-        const els = await ai.mapData(sampleData);
+        // Sanitize untrusted AI elements before appending them to the body.
+        const els = sanitizeElements(await ai.mapData(sampleData));
         result = { ...doc, bands: doc.bands.map((b) => b.type === "body" ? { ...b, elements: [...b.elements, ...els] } : b) };
       }
-      replaceDocument(result);
+      // Final gate: guarantee valid id/type/bounds regardless of the AI provider
+      // (the relay bridge doesn't sanitize on its own).
+      replaceDocument(sanitizeReport(result));
       setMessages((m) => [...m, { role: "assistant", text: "Fertig. Der Canvas wurde aktualisiert." }]);
     } catch (e) {
       setMessages((m) => [...m, { role: "error", text: (e as Error).message }]);

@@ -438,6 +438,53 @@ export function isBindingExpression(value: string): boolean {
   return /\{\{[^}]+\}\}/.test(value) || value.startsWith("=");
 }
 
+const ELEMENT_TYPES: ElementType[] = [
+  "text", "image", "rectangle", "line", "barcode", "table", "chart", "crosstab", "subreport", "pagebreak",
+];
+
+function genId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function finiteNum(v: unknown, fallback: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * Coerce an untrusted element (e.g. AI/relay output) into a renderable shape:
+ * guarantees a string `id`, a known `type`, and finite numeric `bounds`.
+ * Returns null for an unsalvageable element (missing/unknown type).
+ */
+export function sanitizeElement(el: unknown): ReportElement | null {
+  if (!el || typeof el !== "object") return null;
+  const e = el as Record<string, unknown>;
+  if (!ELEMENT_TYPES.includes(e.type as ElementType)) return null;
+  const b = (e.bounds && typeof e.bounds === "object" ? e.bounds : {}) as Record<string, unknown>;
+  const bounds: Bounds = {
+    x: finiteNum(b.x, 0),
+    y: finiteNum(b.y, 0),
+    width: finiteNum(b.width, 40),
+    height: finiteNum(b.height, 10),
+  };
+  return { ...(e as object), id: typeof e.id === "string" && e.id ? e.id : genId(), bounds } as ReportElement;
+}
+
+/** Sanitize an untrusted element list, dropping unsalvageable entries. */
+export function sanitizeElements(els: unknown): ReportElement[] {
+  return Array.isArray(els)
+    ? els.map(sanitizeElement).filter((x): x is ReportElement => x !== null)
+    : [];
+}
+
+/** Sanitize every element in a document's bands. Returns a new document. */
+export function sanitizeReport(doc: ReportDocument): ReportDocument {
+  return {
+    ...doc,
+    bands: (doc.bands ?? []).map((band) => ({ ...band, elements: sanitizeElements(band.elements) })),
+  };
+}
+
 /** Tiny runtime validator. Keeps parity with the JSON Schema shape. */
 export function validateReport(doc: unknown): { ok: true } | { ok: false; error: string } {
   if (!doc || typeof doc !== "object") return { ok: false, error: "document must be an object" };

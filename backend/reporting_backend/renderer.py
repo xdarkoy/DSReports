@@ -31,6 +31,39 @@ _FLOW_BANDS = ("pageHeader", "reportHeader", "body")
 _BOTTOM_BANDS = ("pageFooter", "reportFooter")
 
 
+def _coercible_finite(v: Any) -> bool:
+    try:
+        return math.isfinite(float(v))
+    except (TypeError, ValueError):
+        return False
+
+
+def _validate_document(doc: Mapping[str, Any]) -> None:
+    """Validate the document shape enough that rendering can't raise on
+    untrusted/AI input. Raises ValueError (-> HTTP 400) for malformed elements
+    (missing/non-numeric/non-finite bounds, non-object bands/elements)."""
+    bands = doc.get("bands")
+    if bands is not None and not isinstance(bands, list):
+        raise ValueError("bands must be an array")
+
+    def check(band_list: Any) -> None:
+        for band in band_list or []:
+            if not isinstance(band, Mapping):
+                raise ValueError("each band must be an object")
+            for el in band.get("elements", []) or []:
+                if not isinstance(el, Mapping):
+                    raise ValueError("each element must be an object")
+                b = el.get("bounds")
+                if not isinstance(b, Mapping) or not all(_coercible_finite(b.get(k)) for k in ("x", "y", "width", "height")):
+                    raise ValueError(
+                        f"element {el.get('id', '?')} (type {el.get('type', '?')}) has invalid or missing bounds"
+                    )
+                if el.get("type") == "subreport" and isinstance(el.get("document"), Mapping):
+                    check(el["document"].get("bands"))
+
+    check(bands)
+
+
 def render_report_to_pdf(
     doc: Mapping[str, Any],
     data: Mapping[str, Any] | None = None,
@@ -38,6 +71,7 @@ def render_report_to_pdf(
 ) -> bytes:
     if not isinstance(doc, Mapping):
         raise ValueError("document must be a JSON object")
+    _validate_document(doc)
 
     policy = image_policy or default_image_policy()
     page = doc.get("page", {}) or {}
@@ -314,11 +348,12 @@ def _render_element(
     ctx: Mapping[str, Any], policy: ImagePolicy,
 ) -> None:
     b = el["bounds"]
-    x_pt = b["x"] * mm
-    w_pt = b["width"] * mm
-    h_pt = b["height"] * mm
+    bx, by, bw, bh = float(b["x"]), float(b["y"]), float(b["width"]), float(b["height"])
+    x_pt = bx * mm
+    w_pt = bw * mm
+    h_pt = bh * mm
     # Flip Y: document Y=0 is top, ReportLab Y=0 is bottom.
-    y_pt = page_h_pt - (band_top_mm + b["y"] + b["height"]) * mm
+    y_pt = page_h_pt - (band_top_mm + by + bh) * mm
 
     kind = el.get("type")
     if kind == "text":

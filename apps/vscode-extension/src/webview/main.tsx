@@ -65,6 +65,11 @@ function App() {
   const lastSerialized = useRef<string>("");
   docRef.current = doc;
 
+  // Expose the current document for a synchronous host-side pull (Visual Studio
+  // WebView2 save reads this via ExecuteScriptAsync so the file is written
+  // before the shell considers the save complete).
+  (window as any).__rdGetDocument = () => docRef.current;
+
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const data = e.data;

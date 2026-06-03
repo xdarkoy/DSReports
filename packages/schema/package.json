@@ -12,7 +12,10 @@
       "require": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
@@ -20,5 +23,6 @@
   "devDependencies": {
     "tsup": "^8.0.2",
     "typescript": "^5.4.5"
-  }
+  },
+  "license": "Apache-2.0"
 }

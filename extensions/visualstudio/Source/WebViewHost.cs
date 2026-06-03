@@ -96,11 +96,23 @@ namespace ReportDesigner.VsExtension
             Post(new { type = "load", payload = JObject.Parse(json.Length == 0 ? "{}" : json) });
         }
 
-        /// <summary>Asks the webview to push its current document back so we can persist it.</summary>
-        public void RequestSerializeAsync(string path)
+        /// <summary>
+        /// Synchronously read the current document from the webview (indented JSON),
+        /// or null if the webview isn't ready. Used by the shell save path so the
+        /// file is written before the save is reported complete.
+        /// </summary>
+        public async Task<string> GetDocumentJsonAsync()
         {
-            _filePath = path;
-            Post(new { type = "serialize" });
+            if (_web?.CoreWebView2 == null) return null;
+            var raw = await _web.CoreWebView2.ExecuteScriptAsync(
+                "window.__rdGetDocument ? JSON.stringify(window.__rdGetDocument()) : null");
+            if (string.IsNullOrEmpty(raw) || raw == "null") return null;
+            // ExecuteScriptAsync JSON-encodes the return value; our script returns a
+            // JSON string, so unwrap one level then pretty-print.
+            var inner = JsonConvert.DeserializeObject<string>(raw);
+            if (string.IsNullOrEmpty(inner)) return null;
+            try { return JObject.Parse(inner).ToString(Formatting.Indented); }
+            catch { return inner; }
         }
 
         private void SendConfig()

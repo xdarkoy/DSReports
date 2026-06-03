@@ -29,7 +29,7 @@ namespace ReportDesigner.VsExtension
             _host = new WebViewHost(package);
             _host.DocumentChanged += (_, __) => _dirty = true;
             _host.SaveRequested += (_, json) => SaveToDisk(json);
-            _host.LoadFileAsync(_filePath);
+            _ = _host.LoadFileAsync(_filePath);
         }
 
         public override IWin32Window Window => _host;
@@ -39,16 +39,13 @@ namespace ReportDesigner.VsExtension
         public int GetCurFile(out string ppszFilename, out uint pnFormatIndex) { ppszFilename = _filePath; pnFormatIndex = 0; return VSConstants.S_OK; }
         public int GetFormatList(out string ppszFormatList) { ppszFormatList = "Report Document (*.myreport)\n*.myreport\n"; return VSConstants.S_OK; }
         public int InitNew(uint nFormatIndex) => VSConstants.S_OK;
-        public int Load(string pszFilename, uint grfMode, int fReadOnly) { _host.LoadFileAsync(pszFilename ?? _filePath); return VSConstants.S_OK; }
+        public int Load(string pszFilename, uint grfMode, int fReadOnly) { _ = _host.LoadFileAsync(pszFilename ?? _filePath); return VSConstants.S_OK; }
         public int Save(string pszFilename, int fRemember, uint nFormatIndex)
         {
-            // NOTE: serialization is asynchronous — the webview posts the
-            // document back via SaveRequested -> SaveToDisk. The shell may treat
-            // the file as saved before the write completes. _dirty is only
-            // cleared on a successful SaveToDisk, so a failed/never-arriving
-            // serialize keeps the document dirty. A fully synchronous save would
-            // require pulling the document from the webview via ExecuteScriptAsync.
-            _host.RequestSerializeAsync(pszFilename ?? _filePath);
+            // Pull the current document from the webview and write it BEFORE
+            // returning, so the shell never considers the save complete before
+            // the bytes hit disk.
+            PullAndSave();
             return VSConstants.S_OK;
         }
         public int SaveCompleted(string pszFilename) { _dirty = false; return VSConstants.S_OK; }
@@ -58,19 +55,34 @@ namespace ReportDesigner.VsExtension
         public int GetGuidEditorType(out Guid pClassID) { pClassID = PackageGuids.EditorFactory; return VSConstants.S_OK; }
         public int IsDocDataDirty(out int pfDirty) { pfDirty = _dirty ? 1 : 0; return VSConstants.S_OK; }
         public int SetUntitledDocPath(string pszDocDataPath) => VSConstants.S_OK;
-        public int LoadDocData(string pszMkDocument) { _host.LoadFileAsync(pszMkDocument); return VSConstants.S_OK; }
+        public int LoadDocData(string pszMkDocument) { _ = _host.LoadFileAsync(pszMkDocument); return VSConstants.S_OK; }
         public int SaveDocData(VSSAVEFLAGS dwSave, out string pbstrMkDocumentNew, out int pfSaveCanceled)
         {
             pbstrMkDocumentNew = _filePath;
             pfSaveCanceled = 0;
-            _host.RequestSerializeAsync(_filePath);
+            PullAndSave();
             return VSConstants.S_OK;
         }
         public int Close() => VSConstants.S_OK;
         public int OnRegisterDocData(uint docCookie, IVsHierarchy pHierNew, uint itemidNew) => VSConstants.S_OK;
         public int RenameDocData(uint grfAttribs, IVsHierarchy pHierNew, uint itemidNew, string pszMkDocumentNew) => VSConstants.S_OK;
         public int IsDocDataReloadable(out int pfReloadable) { pfReloadable = 1; return VSConstants.S_OK; }
-        public int ReloadDocData(uint grfFlags) { _host.LoadFileAsync(_filePath); return VSConstants.S_OK; }
+        public int ReloadDocData(uint grfFlags) { _ = _host.LoadFileAsync(_filePath); return VSConstants.S_OK; }
+
+        /// <summary>
+        /// Synchronously pull the current document JSON from the webview and write
+        /// it to disk. Uses JoinableTaskFactory.Run so the async WebView2 call
+        /// completes (and _dirty is cleared) before the caller returns S_OK.
+        /// </summary>
+        private void PullAndSave()
+        {
+            ThreadHelper.JoinableTaskFactory.Run(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var json = await _host.GetDocumentJsonAsync();
+                if (!string.IsNullOrEmpty(json)) SaveToDisk(json);
+            });
+        }
 
         private void SaveToDisk(string json)
         {

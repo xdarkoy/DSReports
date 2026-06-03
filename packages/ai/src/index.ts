@@ -8,6 +8,8 @@
 
 import {
   createEmptyReport,
+  sanitizeElements,
+  sanitizeReport,
   type ReportDocument,
   type ReportElement,
 } from "@reporting/schema";
@@ -115,14 +117,16 @@ export function createClaudeAI(opts: ClaudeAIOptions = {}) {
     const parsed = JSON.parse(cleaned.slice(start, end + 1)) as ReportDocument;
     // Defensive: fill in anything missing so we never hand the designer a half-doc.
     const base = createEmptyReport(parsed.meta?.title ?? "AI Report");
-    return {
+    // Sanitize untrusted element shapes (valid id/type/bounds) so the designer
+    // and PDF renderer never receive a malformed element.
+    return sanitizeReport({
       schemaVersion: "1.0.0",
       meta: { ...base.meta, ...parsed.meta },
       page: { ...base.page, ...parsed.page, margin: { ...base.page.margin, ...(parsed.page?.margin ?? {}) } },
       dataSources: parsed.dataSources ?? [],
       parameters: parsed.parameters ?? [],
       bands: parsed.bands?.length ? parsed.bands : base.bands,
-    };
+    });
   };
 
   return {
@@ -142,7 +146,7 @@ export function createClaudeAI(opts: ClaudeAIOptions = {}) {
       const start = raw.indexOf("[");
       const end = raw.lastIndexOf("]");
       if (start < 0 || end < 0) throw new Error("AI response did not contain a JSON array.");
-      return JSON.parse(raw.slice(start, end + 1));
+      return sanitizeElements(JSON.parse(raw.slice(start, end + 1)));
     },
     async restyle(prompt: string, doc: ReportDocument): Promise<ReportDocument> {
       const user =
@@ -159,7 +163,7 @@ export function createClaudeAI(opts: ClaudeAIOptions = {}) {
       const start = raw.indexOf("[");
       const end = raw.lastIndexOf("]");
       if (start < 0 || end < 0) throw new Error("AI response did not contain a JSON array.");
-      return JSON.parse(raw.slice(start, end + 1));
+      return sanitizeElements(JSON.parse(raw.slice(start, end + 1)));
     },
   };
 }
