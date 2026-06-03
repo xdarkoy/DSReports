@@ -47,7 +47,7 @@ def render_report_to_pdf(
 
     buf = io.BytesIO()
     c = pdf_canvas.Canvas(buf, pagesize=size)
-    _page_w_pt, page_h_pt = size
+    page_w_pt, page_h_pt = size
     page_h_mm = page_h_pt / mm
 
     bands = doc.get("bands", []) or []
@@ -58,7 +58,7 @@ def render_report_to_pdf(
     }
 
     # Report-level (band) grouping takes its own render path.
-    if doc.get("grouping") and _render_grouped(c, doc, bands, base_ctx, page_h_pt, page_h_mm, policy):
+    if doc.get("grouping") and _render_grouped(c, doc, bands, base_ctx, page_w_pt, page_h_pt, page_h_mm, policy):
         c.save()
         return buf.getvalue()
 
@@ -86,7 +86,7 @@ def _band_h(bands: list, kind: str) -> float:
 
 
 def _render_grouped(c: pdf_canvas.Canvas, doc: Mapping[str, Any], bands: list, base_ctx: dict,
-                    page_h_pt: float, page_h_mm: float, policy: ImagePolicy) -> bool:
+                    page_w_pt: float, page_h_pt: float, page_h_mm: float, policy: ImagePolicy) -> bool:
     """Band-level grouping: repeat groupHeader/body/groupFooter per group, with
     page breaks between groups. Returns False (use the normal path) if the
     grouping master data is missing/empty."""
@@ -132,6 +132,12 @@ def _render_grouped(c: pdf_canvas.Canvas, doc: Mapping[str, Any], bands: list, b
             _render_band(c, page_header, 0.0, page_h_pt, pctx, policy)
         if p == 0 and report_header:
             _render_band(c, report_header, ph_h, page_h_pt, pctx, policy)
+        # clip group content to the area above the page footer so an oversized
+        # group (groups are not split across pages) can't overprint the footer
+        c.saveState()
+        clip = c.beginPath()
+        clip.rect(0, pf_h * mm, page_w_pt, page_h_pt - pf_h * mm)
+        c.clipPath(clip, stroke=0, fill=0)
         for (gp, gy), (key, rows) in zip(placements, groups):
             if gp != p:
                 continue
@@ -145,6 +151,7 @@ def _render_grouped(c: pdf_canvas.Canvas, doc: Mapping[str, Any], bands: list, b
             top += body_h
             if gf_band:
                 _render_band(c, gf_band, top, page_h_pt, gctx, policy)
+        c.restoreState()
         if p == total - 1 and report_footer:
             _render_band(c, report_footer, page_h_mm - pf_h - rf_h, page_h_pt, pctx, policy)
         if page_footer:
@@ -330,6 +337,8 @@ def _render_element(
         _crosstab(c, el, x_pt, y_pt, w_pt, h_pt, ctx)
     elif kind == "subreport":
         _subreport(c, el, x_pt, y_pt, w_pt, h_pt, page_h_pt, ctx, policy)
+    elif kind == "pagebreak":
+        pass  # layout-only marker; no PDF visual in the baseline renderer
     elif kind == "chart":
         # Charts are out of scope for the baseline renderer; draw a placeholder.
         c.saveState()
@@ -566,9 +575,13 @@ def _subreport(c: pdf_canvas.Canvas, el: dict, x: float, y: float, w: float, h: 
                page_h_pt: float, ctx: Mapping[str, Any], policy: ImagePolicy) -> None:
     """Render a nested report's content bands (reportHeader/body/reportFooter)
     stacked within the element box, clipped to its bounds."""
+    depth = int(ctx.get("__subdepth", 0) or 0)
+    if depth >= 8:  # guard against deeply/maliciously nested sub-reports
+        return
     doc = el.get("document") or {}
     resolved = resolve_binding(el.get("dataSource"), ctx) if el.get("dataSource") else None
     sub_ctx = {**ctx, **resolved} if isinstance(resolved, Mapping) else {**ctx, "sub": resolved}
+    sub_ctx["__subdepth"] = depth + 1
 
     style = el.get("style") or {}
     if style.get("backgroundColor"):
@@ -634,7 +647,7 @@ def _pivot(rows: list, row_field: str, col_field: str, val_field: str, agg: str)
         row_totals[r] = 0.0
         for col in col_keys:
             vals = buckets.get((r, col), [])
-            val = _aggregate(agg, [v for v in vals if not math.isnan(v)] if agg != "count" else vals, len(vals)) if vals else 0.0
+            val = _aggregate(agg, vals, len(vals)) if vals else 0.0
             cells[r][col] = val
             row_totals[r] += val
             col_totals[col] += val
@@ -867,19 +880,21 @@ def _footer_cell(col: dict, rows: list, ctx: Mapping[str, Any]) -> str:
     return ""
 
 
-def _aggregate(func: str, values: list[float], row_count: int) -> float:
+def _aggregate(func: str, values: list, row_count: int) -> float:
     if func == "count":
         return row_count
-    if not values:
+    # match the TS aggregate(): only finite numbers contribute
+    nums = [v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)]
+    if not nums:
         return 0
     if func == "sum":
-        return sum(values)
+        return sum(nums)
     if func == "avg":
-        return sum(values) / len(values)
+        return sum(nums) / len(nums)
     if func == "min":
-        return min(values)
+        return min(nums)
     if func == "max":
-        return max(values)
+        return max(nums)
     return 0
 
 

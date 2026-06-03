@@ -12,7 +12,7 @@ import type {
   TableElement,
   TextElement,
 } from "@reporting/schema";
-import { applyFormat, evaluateArray, evaluateValue, resolveBinding } from "../utils/expression";
+import { applyFormat, evaluateArray, evaluateValue, evaluateCondition, resolveBinding } from "../utils/expression";
 import { aggregate } from "../utils/reportFields";
 import { mergeConditional } from "../utils/conditional";
 import { shapeRows, groupRows } from "../utils/tableData";
@@ -33,13 +33,20 @@ export function renderElement(el: ReportElement, data: Record<string, unknown>, 
   }
 }
 
+const MAX_SUBREPORT_DEPTH = 8;
+
 function SubReportR({ el, data, pxPerMm }: { el: SubReportElement; data: Record<string, unknown>; pxPerMm: number }) {
+  const depth = Number(data.__subdepth) || 0;
+  if (depth >= MAX_SUBREPORT_DEPTH) {
+    return <div style={{ fontSize: 9, color: "#b91c1c" }}>⚠ sub-report nesting too deep</div>;
+  }
   const sub = el.document;
   const resolved = el.dataSource ? resolveBinding(el.dataSource, data) : undefined;
-  const subData: Record<string, unknown> =
+  const base: Record<string, unknown> =
     resolved && typeof resolved === "object" && !Array.isArray(resolved)
       ? { ...data, ...(resolved as Record<string, unknown>) }
       : { ...data, sub: resolved };
+  const subData = { ...base, __subdepth: depth + 1 };
   const bands = (sub?.bands ?? []).filter(
     (b) => b.type === "reportHeader" || b.type === "body" || b.type === "reportFooter",
   );
@@ -49,20 +56,22 @@ function SubReportR({ el, data, pxPerMm }: { el: SubReportElement; data: Record<
       {bands.flatMap((band) => {
         const bandTop = topMm;
         topMm += band.height;
-        return band.elements.map((nel) => (
-          <div
-            key={nel.id}
-            style={{
-              position: "absolute",
-              left: nel.bounds.x * pxPerMm,
-              top: (bandTop + nel.bounds.y) * pxPerMm,
-              width: nel.bounds.width * pxPerMm,
-              height: nel.bounds.height * pxPerMm,
-            }}
-          >
-            {renderElement(nel, subData, pxPerMm)}
-          </div>
-        ));
+        return band.elements
+          .filter((nel) => nel.visible !== false && evaluateCondition(nel.visibleIf, subData))
+          .map((nel) => (
+            <div
+              key={nel.id}
+              style={{
+                position: "absolute",
+                left: nel.bounds.x * pxPerMm,
+                top: (bandTop + nel.bounds.y) * pxPerMm,
+                width: nel.bounds.width * pxPerMm,
+                height: nel.bounds.height * pxPerMm,
+              }}
+            >
+              {renderElement(nel, subData, pxPerMm)}
+            </div>
+          ));
       })}
     </div>
   );
