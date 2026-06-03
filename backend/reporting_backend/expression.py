@@ -459,14 +459,17 @@ def evaluate_array(expr: str, ctx: Mapping[str, Any]) -> list[Any]:
 
 
 def evaluate_bool(expr: Any, ctx: Mapping[str, Any]) -> bool:
-    """Evaluate a condition (e.g. an element's ``visibleIf``) to a boolean."""
+    """Evaluate a condition (e.g. an element's ``visibleIf``) to a boolean.
+
+    Always routes through the expression parser: it resolves dotted/bracket
+    paths *and* literals (true/false/null/numbers). A simple-path shortcut here
+    would misread the literal keyword ``true`` as a context lookup.
+    """
     if expr is None or expr == "":
         return True
     if not isinstance(expr, str):
         return _truthy(expr)
     src = expr[1:].strip() if expr.startswith("=") else expr.strip()
-    if _SIMPLE_PATH.match(src):
-        return _truthy(_get_path(ctx, src))
     return _truthy(_evaluate_expr(src, ctx))
 
 

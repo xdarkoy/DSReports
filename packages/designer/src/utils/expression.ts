@@ -60,9 +60,11 @@ function truthy(v: unknown): boolean {
  */
 export function evaluateCondition(expr: string | undefined, data: DataContext = {}): boolean {
   if (expr == null || expr === "") return true;
+  // Always route through the parser: it resolves paths AND literals
+  // (true/false/null/numbers). A simple-path shortcut would misread the
+  // literal keyword `true` as a context lookup and return false.
   const src = expr.startsWith("=") ? expr.slice(1).trim() : expr.trim();
-  const v = /^[\w.]+$/.test(src) ? getPath(data, src) : evaluateExpr(src, data as EvalContext);
-  return truthy(v);
+  return truthy(evaluateExpr(src, data as EvalContext));
 }
 
 /** Resolve a bound array for tables / charts. */
