@@ -5,6 +5,7 @@ import type {
   ConditionalFormat,
   ImageElement,
   LineElement,
+  Parameter,
   RectangleElement,
   ReportElement,
   TableColumn,
@@ -153,7 +154,63 @@ function ReportProps() {
         <NumField label="Margin B" value={doc.page.margin.bottom} onChange={(v) => setDocument({ ...doc, page: { ...doc.page, margin: { ...doc.page.margin, bottom: v } } })} />
         <NumField label="Margin L" value={doc.page.margin.left} onChange={(v) => setDocument({ ...doc, page: { ...doc.page, margin: { ...doc.page.margin, left: v } } })} />
       </Group>
+      <ParametersGroup />
     </>
+  );
+}
+
+function ParametersGroup() {
+  const doc = useDesignerStore((s) => s.doc);
+  const setDocument = useDesignerStore((s) => s.setDocument);
+  const params = doc.parameters ?? [];
+  const setParam = (i: number, u: (p: Parameter) => Parameter) =>
+    setDocument({ ...doc, parameters: params.map((p, idx) => (idx === i ? u(p) : p)) });
+  const addParam = () =>
+    setDocument({
+      ...doc,
+      parameters: [...params, { id: nanoid(8), name: `param${params.length + 1}`, type: "string" }],
+    });
+  const delParam = (i: number) =>
+    setDocument({ ...doc, parameters: params.filter((_, idx) => idx !== i) });
+
+  return (
+    <Group title="Parameters">
+      <div style={{ fontSize: 10, color: "var(--rd-muted)", marginBottom: 4 }}>
+        Use as <code>{"{{params.name}}"}</code> in any binding.
+      </div>
+      {params.map((p, i) => (
+        <div key={p.id} style={{ border: "1px solid var(--rd-border)", borderRadius: 6, padding: 8, marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+            <strong style={{ fontSize: 11 }}>#{i + 1}</strong>
+            <span style={{ flex: 1 }} />
+            <button className="rd-btn rd-icon" title="Remove" onClick={() => delParam(i)}>×</button>
+          </div>
+          <Field label="Name">
+            <input value={p.name} onChange={(e) => setParam(i, (x) => ({ ...x, name: e.target.value }))} />
+          </Field>
+          <Field label="Type">
+            <select value={p.type} onChange={(e) => setParam(i, (x) => ({ ...x, type: e.target.value as Parameter["type"], defaultValue: undefined }))}>
+              {(["string", "number", "boolean", "date"] as const).map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </Field>
+          <Field label="Prompt">
+            <input value={p.prompt ?? ""} placeholder="Frage an den Nutzer" onChange={(e) => setParam(i, (x) => ({ ...x, prompt: e.target.value || undefined }))} />
+          </Field>
+          <Field label="Value">
+            {p.type === "boolean" ? (
+              <input type="checkbox" checked={p.defaultValue === true} onChange={(e) => setParam(i, (x) => ({ ...x, defaultValue: e.target.checked }))} />
+            ) : (
+              <input
+                type={p.type === "number" ? "number" : p.type === "date" ? "date" : "text"}
+                value={(p.defaultValue as string | number) ?? ""}
+                onChange={(e) => setParam(i, (x) => ({ ...x, defaultValue: e.target.value }))}
+              />
+            )}
+          </Field>
+        </div>
+      ))}
+      <button className="rd-btn" onClick={addParam}>+ Add parameter</button>
+    </Group>
   );
 }
 

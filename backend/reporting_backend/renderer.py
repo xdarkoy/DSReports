@@ -51,9 +51,10 @@ def render_report_to_pdf(
 
     bands = doc.get("bands", []) or []
     base = data if data is not None else _extract_data(doc)
-    # Merge Crystal-style special fields on top of the data context.
+    # Merge report parameters and Crystal-style special fields onto the data.
     ctx: Mapping[str, Any] = {
         **(base if isinstance(base, Mapping) else {}),
+        "params": _resolve_parameters(doc),
         **_system_fields(doc),
     }
 
@@ -431,6 +432,25 @@ def _aggregate(func: str, values: list[float], row_count: int) -> float:
     if func == "max":
         return max(values)
     return 0
+
+
+def _resolve_parameters(doc: Mapping[str, Any]) -> dict:
+    """Map report parameters to {name: value} for {{params.name}} bindings."""
+    out: dict = {}
+    for p in doc.get("parameters", []) or []:
+        if not isinstance(p, Mapping):
+            continue
+        v = p.get("defaultValue")
+        t = p.get("type")
+        if t == "number" and v not in (None, ""):
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                pass
+        elif t == "boolean":
+            v = v is True or v == "true"
+        out[p.get("name")] = v
+    return out
 
 
 def _system_fields(doc: Mapping[str, Any], page: int = 1, page_count: int = 1) -> dict:

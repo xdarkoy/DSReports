@@ -325,6 +325,22 @@ export const DEFAULT_PAGE: PageSettings = {
   unit: "mm",
 };
 
+/**
+ * Resolve report parameters into a plain `{ name: value }` map for use in
+ * expressions as `{{params.name}}`. Coerces by declared type and falls back to
+ * the parameter's `defaultValue` (which doubles as its current value).
+ */
+export function resolveParameters(params: Parameter[] | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const p of params ?? []) {
+    let v = p.defaultValue;
+    if (p.type === "number" && v != null && v !== "") v = Number(v);
+    if (p.type === "boolean") v = v === true || v === "true";
+    out[p.name] = v;
+  }
+  return out;
+}
+
 export function createEmptyReport(title = "Untitled report"): ReportDocument {
   const now = new Date().toISOString();
   return {

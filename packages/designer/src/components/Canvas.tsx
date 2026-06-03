@@ -3,6 +3,7 @@ import clsx from "clsx";
 import {
   mmToPx,
   paperSizeMm,
+  resolveParameters,
   type Band,
   type BandType,
   type ElementType,
@@ -41,9 +42,9 @@ export function Canvas() {
 
   const dataCtx = useMemo<Record<string, unknown>>(() => {
     const base = sampleData && typeof sampleData === "object" ? (sampleData as Record<string, unknown>) : {};
-    // Inject Crystal-style special fields ({{Page}}, {{PrintDate}}, …).
-    return { ...base, ...systemFields({ title: doc.meta.title }) };
-  }, [sampleData, doc.meta.title]);
+    // Inject report parameters ({{params.x}}) and Crystal-style special fields.
+    return { ...base, params: resolveParameters(doc.parameters), ...systemFields({ title: doc.meta.title }) };
+  }, [sampleData, doc.meta.title, doc.parameters]);
 
   const handleDrop = (e: React.DragEvent, band: Band) => {
     e.preventDefault();

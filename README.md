@@ -85,6 +85,8 @@ Ein Report ist eine **JSON-Datei** (`*.myreport.json`). Beispiel:
  - **Gruppierung mit Zwischensummen** – Tabelle nach Feld gruppieren
    (`groupBy`), Gruppen-Kopfzeile (`Kategorie: {{group}}`) und Subtotal-Zeile
    je Gruppe (nutzt die Spalten-`summary`)
+ - **Parameter** – Report-Parameter (string/number/boolean/date) mit Wert,
+   nutzbar in jedem Binding als `{{params.name}}`
  - **Drag-and-drop** – Toolbox-Elemente *und* Datenfelder auf Bands/Elemente
  - **Snap-to-grid**, Arrow-Key-Nudging, Resize-Handles, Undo/Redo
  - **Data Explorer** – JSON paste-and-bind, Baumansicht, Drag von Feldern
