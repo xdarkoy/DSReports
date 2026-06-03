@@ -20,15 +20,8 @@
     <PackageReference Include="Newtonsoft.Json"                       Version="13.0.3" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="Source\ReportDesignerPackage.cs" />
-    <Compile Include="Source\ReportEditorFactory.cs" />
-    <Compile Include="Source\ReportEditorPane.cs" />
-    <Compile Include="Source\WebViewHost.cs" />
-    <Compile Include="Source\NewReportCommand.cs" />
-    <Compile Include="Source\OptionsPage.cs" />
-    <Compile Include="Source\ClaudeRelay.cs" />
-  </ItemGroup>
+  <!-- Source\*.cs are auto-included by the SDK; do NOT list them again
+       (NETSDK1022 duplicate compile items). -->
 
   <ItemGroup>
     <None Include="source.extension.vsixmanifest">
@@ -42,4 +35,16 @@
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
   </ItemGroup>
+
+  <!-- Copy the freshly built React webview bundle (produced by
+       `npm run build:webview` in apps/vscode-extension) into Resources\webview
+       before building, so the VSIX always ships the current designer.js/css.
+       See scripts/build-webview.ps1. -->
+  <Target Name="CopyWebviewAssets" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <WebviewAsset Include="$(MSBuildProjectDirectory)\..\..\apps\vscode-extension\media\designer.js;$(MSBuildProjectDirectory)\..\..\apps\vscode-extension\media\designer.css" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WebviewAsset)" DestinationFolder="$(MSBuildProjectDirectory)\Resources\webview"
+          SkipUnchangedFiles="true" Condition="'@(WebviewAsset)' != ''" />
+  </Target>
 </Project>

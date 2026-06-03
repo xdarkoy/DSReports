@@ -28,6 +28,7 @@ interface DesignerState {
   snapToGrid: boolean;
   showGrid: boolean;
   sampleData: unknown;
+  readOnly: boolean;
   history: HistoryEntry[];
   future: HistoryEntry[];
   lastEditAt: number;
@@ -40,6 +41,7 @@ interface DesignerState {
   setShowGrid: (show: boolean) => void;
   setGridSize: (size: number) => void;
   setSampleData: (data: unknown) => void;
+  setReadOnly: (readOnly: boolean) => void;
 
   // ---- selection
   select: (sel: Selection) => void;
@@ -172,12 +174,14 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   snapToGrid: true,
   showGrid: true,
   sampleData: undefined,
+  readOnly: false,
   history: [],
   future: [],
   lastEditAt: 0,
 
   setDocument: (doc, record = true) => {
     const prev = get();
+    if (prev.readOnly) return; // readOnly: block all document mutations
     if (!record) {
       set({ doc: stamp(doc) });
       return;
@@ -204,6 +208,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   setShowGrid: (show) => set({ showGrid: show }),
   setGridSize: (size) => set({ gridSize: Math.max(1, size) }),
   setSampleData: (data) => set({ sampleData: data }),
+  setReadOnly: (readOnly) => set({ readOnly }),
 
   select: (sel) => set({ selection: sel }),
   selectElement: (bandType, elementId) => set({ selection: { kind: "element", bandType, elementId } }),
@@ -293,8 +298,8 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   },
 
   undo: () => {
-    const { history, future, doc, selection } = get();
-    if (history.length === 0) return;
+    const { history, future, doc, selection, readOnly } = get();
+    if (readOnly || history.length === 0) return;
     const prev = history[history.length - 1];
     set({
       doc: prev.doc,
@@ -306,8 +311,8 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   },
 
   redo: () => {
-    const { history, future, doc, selection } = get();
-    if (future.length === 0) return;
+    const { history, future, doc, selection, readOnly } = get();
+    if (readOnly || future.length === 0) return;
     const next = future[future.length - 1];
     set({
       doc: next.doc,

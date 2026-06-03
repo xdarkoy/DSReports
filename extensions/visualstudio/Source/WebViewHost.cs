@@ -105,8 +105,11 @@ namespace ReportDesigner.VsExtension
 
         private void SendConfig()
         {
+            // The API key never leaves the extension host — Claude calls are
+            // proxied via ClaudeRelay. The webview only needs to know whether a
+            // key is configured (mirrors the VS Code extension).
             var (apiKey, model, backendUrl) = _package.GetOptions();
-            Post(new { type = "config", payload = new { apiKey, aiModel = model, backendUrl } });
+            Post(new { type = "config", payload = new { hasApiKey = !string.IsNullOrEmpty(apiKey), aiModel = model, backendUrl } });
         }
 
         private void Post(object payload)

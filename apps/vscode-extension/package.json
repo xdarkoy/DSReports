@@ -68,9 +68,11 @@
     }
   },
   "scripts": {
-    "build": "npm run build:webview && tsc -p ./",
+    "build": "npm run build:webview && npm run build:host && npm run typecheck",
     "build:webview": "vite build --config vite.webview.config.ts",
-    "watch": "tsc -w -p ./",
+    "build:host": "esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --format=cjs --external:vscode --target=node18",
+    "typecheck": "tsc --noEmit -p ./",
+    "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --format=cjs --external:vscode --target=node18 --watch",
     "vscode:prepublish": "npm run build",
     "package": "vsce package --no-dependencies"
   },
@@ -81,6 +83,7 @@
     "@types/vscode": "^1.85.0",
     "@vitejs/plugin-react": "^6.0.2",
     "@vscode/vsce": "^2.24.0",
+    "esbuild": "^0.27.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.4.5",

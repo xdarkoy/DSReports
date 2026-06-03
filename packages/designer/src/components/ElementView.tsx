@@ -30,6 +30,7 @@ export function ElementView({ element, bandType, pxPerMm, data }: Props) {
   const updateElement = useDesignerStore((s) => s.updateElement);
   const snap = useDesignerStore((s) => s.snapToGrid);
   const grid = useDesignerStore((s) => s.gridSize);
+  const readOnly = useDesignerStore((s) => s.readOnly);
 
   const isSelected =
     selection.kind === "element" && selection.elementId === element.id && selection.bandType === bandType;
@@ -41,6 +42,7 @@ export function ElementView({ element, bandType, pxPerMm, data }: Props) {
     if (element.locked) return;
     e.stopPropagation();
     selectElement(bandType, element.id);
+    if (readOnly) return; // selectable but not movable in read-only mode
     dragRef.current = {
       kind: "move",
       startX: e.clientX,
@@ -145,7 +147,7 @@ export function ElementView({ element, bandType, pxPerMm, data }: Props) {
       title={hidden ? "Hidden (visible=false / visibleIf)" : undefined}
     >
       {renderElement(element, data, pxPerMm)}
-      {isSelected && !element.locked && (
+      {isSelected && !element.locked && !readOnly && (
         <>
           {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((h) => (
             <div

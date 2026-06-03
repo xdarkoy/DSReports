@@ -25,7 +25,10 @@ export function ReportDesigner(props: ReportDesignerProps) {
 
   const replaceDocument = useDesignerStore((s) => s.replaceDocument);
   const setSampleData = useDesignerStore((s) => s.setSampleData);
+  const setReadOnly = useDesignerStore((s) => s.setReadOnly);
   const doc = useDesignerStore((s) => s.doc);
+
+  useEffect(() => { setReadOnly(readOnly); }, [readOnly, setReadOnly]);
 
   // Hold the latest callbacks in refs so the "push changes" effect depends
   // only on `doc` — otherwise inline `host`/`onDocumentChange` objects (new

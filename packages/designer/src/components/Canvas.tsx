@@ -34,6 +34,7 @@ export function Canvas() {
   const gridSize = useDesignerStore((s) => s.gridSize);
   const snap = useDesignerStore((s) => s.snapToGrid);
   const sampleData = useDesignerStore((s) => s.sampleData);
+  const readOnly = useDesignerStore((s) => s.readOnly);
   const select = useDesignerStore((s) => s.select);
   const addElementAt = useDesignerStore((s) => s.addElementAt);
   const updateElement = useDesignerStore((s) => s.updateElement);
@@ -67,6 +68,7 @@ export function Canvas() {
   const handleDrop = (e: React.DragEvent, band: Band) => {
     e.preventDefault();
     setDragOverBand(null);
+    if (readOnly) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const xMm = (e.clientX - rect.left) / pxPerMm;
     const yMm = (e.clientY - rect.top) / pxPerMm;
@@ -102,7 +104,7 @@ export function Canvas() {
   // Keyboard shortcuts on selected element
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (selection.kind !== "element") return;
+      if (selection.kind !== "element" || useDesignerStore.getState().readOnly) return;
       const target = e.target as HTMLElement | null;
       if (target && /INPUT|TEXTAREA|SELECT/.test(target.tagName)) return;
 

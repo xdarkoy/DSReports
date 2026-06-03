@@ -42,6 +42,12 @@ namespace ReportDesigner.VsExtension
         public int Load(string pszFilename, uint grfMode, int fReadOnly) { _host.LoadFileAsync(pszFilename ?? _filePath); return VSConstants.S_OK; }
         public int Save(string pszFilename, int fRemember, uint nFormatIndex)
         {
+            // NOTE: serialization is asynchronous — the webview posts the
+            // document back via SaveRequested -> SaveToDisk. The shell may treat
+            // the file as saved before the write completes. _dirty is only
+            // cleared on a successful SaveToDisk, so a failed/never-arriving
+            // serialize keeps the document dirty. A fully synchronous save would
+            // require pulling the document from the webview via ExecuteScriptAsync.
             _host.RequestSerializeAsync(pszFilename ?? _filePath);
             return VSConstants.S_OK;
         }
