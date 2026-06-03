@@ -49,6 +49,6 @@ interface AIProvider {
 All results are run through `sanitizeReport`/`sanitizeElements`
 (`@xdarkoy/schema`) so malformed model output can't reach the renderer.
 
-See **[docs/USAGE.md](../../docs/USAGE.md)**.
+See **[docs/USAGE.md](https://github.com/xdarkoy/DSReports/blob/main/docs/USAGE.md)**.
 
 Licensed under Apache‑2.0.

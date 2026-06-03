@@ -60,9 +60,9 @@ export default function App() {
 delete · arrows nudge 1 mm · `Shift`+arrows nudge by grid.
 
 ## Where things live
-- Report document shape & helpers: **[@xdarkoy/schema](../schema/README.md)**
-- AI copilot bindings: **[@xdarkoy/ai](../ai/README.md)**
+- Report document shape & helpers: **[@xdarkoy/schema](https://github.com/xdarkoy/DSReports/blob/main/packages/schema/README.md)**
+- AI copilot bindings: **[@xdarkoy/ai](https://github.com/xdarkoy/DSReports/blob/main/packages/ai/README.md)**
 - Full feature guide (bindings, special fields, grouping, cross‑tab, …):
-  **[docs/USAGE.md](../../docs/USAGE.md)**
+  **[docs/USAGE.md](https://github.com/xdarkoy/DSReports/blob/main/docs/USAGE.md)**
 
 Licensed under Apache‑2.0.

@@ -58,6 +58,6 @@ before handing them to the renderer or UI.
   `{{PrintTime}}`, `{{ReportTitle}}`, `{{RowNumber}}` (in table rows),
   `{{group}}`/`{{groupItems}}`/`{{GroupCount}}` (in group bands)
 
-See **[docs/USAGE.md](../../docs/USAGE.md)** for the full guide.
+See **[docs/USAGE.md](https://github.com/xdarkoy/DSReports/blob/main/docs/USAGE.md)** for the full guide.
 
 Licensed under Apache‑2.0.
