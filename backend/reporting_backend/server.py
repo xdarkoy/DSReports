@@ -40,7 +40,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
     allow_methods=["POST", "OPTIONS"],
-    allow_headers=["content-type"],
+    # Reflect any requested headers so a preflight never fails on headers; the
+    # origin allowlist above is the actual security boundary.
+    allow_headers=["*"],
 )
 
 # Built once; reads REPORT_IMAGE_* env vars.
