@@ -4,9 +4,21 @@
   "description": "Visueller WYSIWYG Report Designer mit KI-Copilot, eingebettet in VS Code",
   "version": "0.1.0",
   "publisher": "reporting",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Other", "Visualization"],
-  "keywords": ["report", "designer", "rdlc", "devexpress", "pdf", "ai"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "report",
+    "designer",
+    "rdlc",
+    "devexpress",
+    "pdf",
+    "ai"
+  ],
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
@@ -15,16 +27,29 @@
         "viewType": "reporting.designer",
         "displayName": "Report Designer",
         "selector": [
-          { "filenamePattern": "*.myreport" },
-          { "filenamePattern": "*.myreport.json" }
+          {
+            "filenamePattern": "*.myreport"
+          },
+          {
+            "filenamePattern": "*.myreport.json"
+          }
         ],
         "priority": "default"
       }
     ],
     "commands": [
-      { "command": "reporting.newReport", "title": "Report Designer: New Report" },
-      { "command": "reporting.preview",   "title": "Report Designer: Render Preview (PDF)" },
-      { "command": "reporting.setApiKey", "title": "Report Designer: Set Anthropic API Key" }
+      {
+        "command": "reporting.newReport",
+        "title": "Report Designer: New Report"
+      },
+      {
+        "command": "reporting.preview",
+        "title": "Report Designer: Render Preview (PDF)"
+      },
+      {
+        "command": "reporting.setApiKey",
+        "title": "Report Designer: Set Anthropic API Key"
+      }
     ],
     "configuration": {
       "title": "Report Designer",
@@ -50,15 +75,15 @@
     "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
-    "@types/node": "^20.11.30",
-    "@types/vscode": "^1.85.0",
-    "@vitejs/plugin-react": "^4.2.1",
-    "@vscode/vsce": "^2.24.0",
-    "typescript": "^5.4.5",
-    "vite": "^5.2.0",
     "@reporting/designer": "0.1.0",
     "@reporting/schema": "0.1.0",
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vscode/vsce": "^2.24.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "typescript": "^5.4.5",
+    "vite": "^8.0.16"
   }
 }
