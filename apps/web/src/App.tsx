@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { ReportDesigner, type ReportDocument } from "@reporting/designer";
 
+// Python render backend (see backend/README.md). Override with VITE_RENDER_URL.
+const RENDER_URL = import.meta.env.VITE_RENDER_URL ?? "http://127.0.0.1:8787/render";
+
 const SAMPLE = {
   invoice: {
     number: "INV-2024-001",
@@ -33,9 +36,28 @@ export function App() {
             a.click();
             URL.revokeObjectURL(url);
           },
-          onRequestPreview: (d) => {
-            console.log("Preview requested", d);
-            alert("Preview würde ans Python-Backend gesendet.");
+          onRequestPreview: async (d) => {
+            try {
+              const res = await fetch(RENDER_URL, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                // Send the demo sample data so {{invoice.*}} bindings resolve
+                // in the rendered PDF.
+                body: JSON.stringify({ document: d, data: SAMPLE }),
+              });
+              if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              window.open(url, "_blank");
+              // Revoke a little later so the new tab has time to load it.
+              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            } catch (e) {
+              alert(
+                `PDF-Preview fehlgeschlagen: ${(e as Error).message}\n\n` +
+                  `Läuft das Render-Backend? → cd backend && python -m reporting_backend.server\n` +
+                  `(erwartet unter ${RENDER_URL})`,
+              );
+            }
           },
         }}
       />
